@@ -191,10 +191,18 @@ html[data-material="on"] .main { background: var(--main); border-radius: 0; }
 .btn:hover { background: var(--fill); }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.4; cursor: default; transform: none; }
-.btn.primary { color: var(--a1-ink, #fff); background: var(--a1); box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.35), var(--shadow-1); font-weight: 600; }
-.btn.primary:hover { filter: brightness(1.03); background: var(--a1); }
-.btn.danger { color: #fff; background: var(--danger); font-weight: 600; }
-.btn.danger:hover { filter: brightness(1.08); background: var(--danger); }
+.btn.primary { color: var(--a1-ink, #fff); background: var(--a1); font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 12px -6px color-mix(in srgb, var(--a1) 40%, transparent), var(--shadow-1);
+  transition: transform 0.2s var(--ease), box-shadow 0.25s var(--ease), background-color var(--t-fast); }
+.btn.danger { color: #fff; background: var(--danger); font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 12px -6px color-mix(in srgb, var(--danger) 40%, transparent), var(--shadow-1);
+  transition: transform 0.2s var(--ease), box-shadow 0.25s var(--ease); }
+/* Same calm hover as the scan button: slight lift + deeper (not brighter) shadow */
+.btn.primary:hover, .btn.danger:hover { transform: translateY(-1px); filter: none; }
+.btn.primary:hover { background: var(--a1); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 18px -9px color-mix(in srgb, var(--a1) 45%, transparent), 0 5px 12px -7px rgba(0, 0, 0, 0.45); }
+.btn.danger:hover { background: var(--danger); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 8px 18px -9px color-mix(in srgb, var(--danger) 45%, transparent), 0 5px 12px -7px rgba(0, 0, 0, 0.45); }
+.btn.primary:active, .btn.danger:active { transform: scale(0.97); }
+.btn.primary:disabled, .btn.danger:disabled { transform: none; box-shadow: none; }
 .btn.ghost { background: transparent; box-shadow: none; color: var(--label-2); }
 .btn.ghost:hover { background: var(--hover); color: var(--label); }
 .btn.sm { height: 26px; padding: 0 11px; font-size: 12.5px; }
@@ -590,17 +598,18 @@ html[data-motion="reduced"] .page-out-down, html[data-motion="reduced"] .page-ou
 .drive-card:hover { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--a1) 60%, transparent), 0 14px 32px -12px rgba(0, 0, 0, 0.45); }
 
 /* Specular sweep across prominent buttons */
-.btn.primary, .scan-btn { overflow: hidden; isolation: isolate; }
-.btn.primary::after, .scan-btn::after {
+.btn.primary, .btn.danger, .scan-btn { overflow: hidden; isolation: isolate; }
+.btn.primary::after, .btn.danger::after, .scan-btn::after {
   content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
   background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.14) 50%, transparent 65%);
   transform: translateX(-120%); transition: transform 0.9s var(--ease);
 }
-.btn.primary { position: relative; }
-.btn.primary:hover::after, .scan-btn:hover::after { transform: translateX(120%); }
+.btn.primary, .btn.danger { position: relative; }
+.btn.primary:hover::after, .btn.danger:hover::after, .scan-btn:hover::after { transform: translateX(120%); }
+.btn:disabled::after { display: none; }
 /* Calm hover: slight lift and a deeper (not brighter) shadow */
 .scan-btn:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 10px 22px -10px color-mix(in srgb, var(--a1) 45%, transparent), 0 6px 16px -8px rgba(0, 0, 0, 0.45); filter: none; }
-.btn:not(.primary):not(.ghost):hover { box-shadow: inset 0 0 0 0.5px var(--glass-edge), inset 0 1px 0 var(--glass-spec); }
+.btn:not(.primary):not(.danger):not(.ghost):hover { box-shadow: inset 0 0 0 0.5px var(--glass-edge), inset 0 1px 0 var(--glass-spec); }
 .icon-btn:hover { box-shadow: inset 0 0 0 0.5px var(--surface-edge); }
 
 /* ---------- Clickable medallion (idle hero) ---------- */

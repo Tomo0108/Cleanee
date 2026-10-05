@@ -1,7 +1,7 @@
 {
   "name": "cleanee",
   "productName": "Cleanee",
-  "version": "1.4.5",
+  "version": "1.4.6",
   "description": "Beautiful PC cleaner for Windows",
   "author": "Cleanee",
   "main": "electron/main.cjs",
