@@ -1,0 +1,173 @@
+<!doctype html>
+<!--
+  Cleanee app icon artwork (1024×1024, opaque).
+  Same family as Videe / Melodee: dark field, three stacked glass panels in perspective,
+  and a glowing single-hue glyph — here a "C" ribbon holding a sparkle, in mint.
+  Rendered to PNG by scripts/render-icon.cjs.
+-->
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  html, body { margin: 0; width: 1024px; height: 1024px; overflow: hidden; background: #000; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<svg id="art" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="bg" cx="0.46" cy="0.42" r="0.78">
+      <stop offset="0" stop-color="#0d4a42" />
+      <stop offset="0.45" stop-color="#062823" />
+      <stop offset="1" stop-color="#010807" />
+    </radialGradient>
+
+    <!-- glass panel fills -->
+    <linearGradient id="glassFront" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2fd9b8" stop-opacity="0.20" />
+      <stop offset="0.5" stop-color="#0f6f62" stop-opacity="0.12" />
+      <stop offset="1" stop-color="#04312b" stop-opacity="0.35" />
+    </linearGradient>
+    <linearGradient id="glassBack" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1fb89c" stop-opacity="0.10" />
+      <stop offset="1" stop-color="#3ff0cb" stop-opacity="0.32" />
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9dfbe6" stop-opacity="0.95" />
+      <stop offset="0.45" stop-color="#3fe3c0" stop-opacity="0.35" />
+      <stop offset="1" stop-color="#7af7dc" stop-opacity="0.9" />
+    </linearGradient>
+    <radialGradient id="frontBase" cx="0.4" cy="0.45" r="0.8">
+      <stop offset="0" stop-color="#0a3a34" />
+      <stop offset="1" stop-color="#03171a" />
+    </radialGradient>
+    <radialGradient id="sparkBody" cx="0.38" cy="0.32" r="0.75">
+      <stop offset="0" stop-color="#f2fffb" />
+      <stop offset="0.35" stop-color="#8ef7df" />
+      <stop offset="1" stop-color="#14a98c" />
+    </radialGradient>
+    <radialGradient id="sheen" cx="0.25" cy="0.15" r="0.75">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16" />
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- glyph -->
+    <linearGradient id="ribbon" x1="0.15" y1="0.1" x2="0.85" y2="0.95">
+      <stop offset="0" stop-color="#ffffff" />
+      <stop offset="0.35" stop-color="#e6fff8" />
+      <stop offset="0.7" stop-color="#7ff5da" />
+      <stop offset="1" stop-color="#2ad1ad" />
+    </linearGradient>
+    <linearGradient id="spark" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#b9fff0" />
+      <stop offset="0.5" stop-color="#4fe8c6" />
+      <stop offset="1" stop-color="#14a98c" />
+    </linearGradient>
+    <linearGradient id="sparkFold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.85" />
+      <stop offset="1" stop-color="#9ff9e4" stop-opacity="0.2" />
+    </linearGradient>
+
+    <filter id="glowBig" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="38" />
+    </filter>
+    <filter id="glowMid" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="14" />
+    </filter>
+    <filter id="glowEdge" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="6" />
+    </filter>
+    <filter id="soft" x="-5%" y="-5%" width="110%" height="110%">
+      <feGaussianBlur stdDeviation="1.2" />
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)" />
+  <g id="panels"></g>
+  <g id="glyph"></g>
+</svg>
+
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs, parent) => {
+    const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    parent.appendChild(e);
+    return e;
+  };
+
+  /** Path for a quadrilateral with rounded corners (corners in clockwise order). */
+  function roundedQuad(pts, r) {
+    const n = pts.length;
+    let d = '';
+    for (let i = 0; i < n; i++) {
+      const p = pts[i], prev = pts[(i + n - 1) % n], next = pts[(i + 1) % n];
+      const toward = (a, b, dist) => {
+        const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
+        return [a[0] + (dx / len) * dist, a[1] + (dy / len) * dist];
+      };
+      const a = toward(p, prev, r), b = toward(p, next, r);
+      d += (i === 0 ? 'M' : 'L') + a.join(',') + ' Q' + p.join(',') + ' ' + b.join(',') + ' ';
+    }
+    return d + 'Z';
+  }
+
+  // Perspective panels: right edges are taller (closer), tops slope up to the right.
+  const panels = [
+    { pts: [[560, 230], [1012, 248], [1012, 812], [560, 790]], r: 46, fill: 'url(#glassBack)', edge: 0.55 },
+    { pts: [[520, 150], [962, 128], [962, 900], [520, 860]], r: 62, fill: 'url(#glassBack)', edge: 0.75 },
+    { pts: [[42, 205], [842, 46], [842, 982], [42, 828]], r: 92, fill: 'url(#glassFront)', edge: 1, front: true },
+  ];
+  const pg = document.getElementById('panels');
+  for (const p of panels) {
+    const d = roundedQuad(p.pts, p.r);
+    el('path', { d, fill: p.front ? 'url(#frontBase)' : '#000', 'fill-opacity': p.front ? 1 : 0.3 }, pg); // front panel occludes the ones behind
+    el('path', { d, fill: p.fill }, pg);
+    if (p.front) el('path', { d, fill: 'url(#sheen)' }, pg);
+    el('path', { d, fill: 'none', stroke: '#45f0cb', 'stroke-width': 10, opacity: 0.35 * p.edge, filter: 'url(#glowEdge)' }, pg);
+    el('path', { d, fill: 'none', stroke: 'url(#edge)', 'stroke-width': p.front ? 4 : 3, opacity: p.edge }, pg);
+  }
+
+  // Glyph: a thick "C" ribbon with a sparkle sitting in its opening.
+  const g = document.getElementById('glyph');
+  const cx = 420, cy = 520, R = 236, W = 150;
+  const a0 = 46 * Math.PI / 180, a1 = 314 * Math.PI / 180; // open on the right
+  const pt = (ang) => [cx + R * Math.cos(ang), cy - R * Math.sin(ang)];
+  const [sx, sy] = pt(a0), [ex, ey] = pt(a1);
+  const cPath = `M${sx},${sy} A${R},${R} 0 1 0 ${ex},${ey}`;
+
+  // Sparkle (4-point star) with concave sides.
+  function star(x, y, s, k = 0.2) {
+    const q = s * k;
+    return `M${x},${y - s} C${x + q * 0.4},${y - q} ${x + q},${y - q * 0.4} ${x + s},${y}
+            C${x + q},${y + q * 0.4} ${x + q * 0.4},${y + q} ${x},${y + s}
+            C${x - q * 0.4},${y + q} ${x - q},${y + q * 0.4} ${x - s},${y}
+            C${x - q},${y - q * 0.4} ${x - q * 0.4},${y - q} ${x},${y - s} Z`;
+  }
+  const big = star(690, 520, 168, 0.2);
+  const small = star(774, 296, 56, 0.2);
+
+  // Glow layers
+  el('path', { d: cPath, fill: 'none', stroke: '#2ee6c0', 'stroke-width': W + 40, 'stroke-linecap': 'round', opacity: 0.55, filter: 'url(#glowBig)' }, g);
+  el('path', { d: big, fill: '#2ee6c0', opacity: 0.7, filter: 'url(#glowBig)' }, g);
+  el('path', { d: cPath, fill: 'none', stroke: '#8ff7df', 'stroke-width': W + 10, 'stroke-linecap': 'round', opacity: 0.6, filter: 'url(#glowMid)' }, g);
+  el('path', { d: big, fill: '#7ff5da', opacity: 0.55, filter: 'url(#glowMid)' }, g);
+  el('path', { d: small, fill: '#7ff5da', opacity: 0.7, filter: 'url(#glowMid)' }, g);
+
+  // Sparkle body (behind the ribbon end, like Videe's play triangle)
+  el('path', { d: big, fill: 'url(#sparkBody)', opacity: 0.96 }, g);
+  el('path', { d: big, fill: 'none', stroke: '#d8fff6', 'stroke-width': 3, opacity: 0.8, filter: 'url(#soft)' }, g);
+
+  // Ribbon body
+  el('path', { d: cPath, fill: 'none', stroke: 'url(#ribbon)', 'stroke-width': W, 'stroke-linecap': 'round' }, g);
+  // soft top highlight on the ribbon (glass look)
+  el('path', { d: cPath, fill: 'none', stroke: '#ffffff', 'stroke-width': W * 0.34, 'stroke-linecap': 'round', opacity: 0.35, filter: 'url(#glowMid)', transform: 'translate(-10,-12)' }, g);
+
+  // Small sparkle
+  el('path', { d: small, fill: 'url(#spark)' }, g);
+  el('path', { d: small, fill: 'none', stroke: '#e6fff9', 'stroke-width': 2, opacity: 0.8 }, g);
+
+  window.__ready = true;
+</script>
+</body>
+</html>
