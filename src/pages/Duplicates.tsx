@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { Copy, Wand2, FolderPlus, FolderOpen, LayoutGrid, X, ShieldCheck } from 'lucide-react';
+import { Copy, Wand2, FolderOpen, LayoutGrid, ShieldCheck } from 'lucide-react';
 import { HELP } from '../help';
 import { api } from '../api';
 import type { DupGroup, FileKind } from '../api/types';
@@ -8,6 +8,7 @@ import { formatBytes, formatNumber, formatDate, prettyPath, dirname } from '../l
 import { KIND_META } from '../lib/icons';
 import { IdleHero, ScanningHero, ScanDock, PageHead, Checkbox, Modal, useProgress, useToast } from '../components/ui';
 import { DoneHero } from '../components/Results';
+import { ScanLocations } from '../components/ScanLocations';
 
 type Phase = 'idle' | 'scanning' | 'results' | 'done';
 type Prog = { stage: 'collect' | 'hash'; current?: string; scanned?: number; hashed?: number; total?: number };
@@ -19,7 +20,7 @@ export default function Duplicates() {
   const { setBadge, refreshSys, recordFreed } = useApp();
   const toast = useToast();
   const [phase, setPhase] = useState<Phase>('idle');
-  const [roots, setRoots] = useState<string[]>([]);
+  const [roots, setRoots] = useState<string[]>(['~']);
   const [groups, setGroups] = useState<DupGroup[]>([]);
   const [prog, setProg] = useState<Prog>({ stage: 'collect' });
   const [kind, setKind] = useState<FileKind | 'all'>('all');
@@ -70,14 +71,7 @@ export default function Duplicates() {
     return (
       <>
         <IdleHero icon={Copy} title="重複ファイル" tagline={HELP.duplicates.tagline} onActivate={scan} />
-        <ScanDock onClick={scan} hint={
-          <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {roots.map((r) => <span key={r} className="chip">{prettyPath(r)}<X size={12} style={{ cursor: 'pointer' }} onClick={() => setRoots((x) => x.filter((y) => y !== r))} /></span>)}
-            <button className="btn sm ghost" onClick={async () => { const p = await api.pickFolders(); if (p.length) setRoots((r) => [...new Set([...r, ...p])]); }}>
-              <FolderPlus size={14} />{roots.length ? '追加' : 'ユーザーフォルダ'}
-            </button>
-          </span>
-        } />
+        <ScanDock onClick={scan} hint={<ScanLocations value={roots} onChange={setRoots} />} />
       </>
     );
   }

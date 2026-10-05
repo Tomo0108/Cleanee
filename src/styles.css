@@ -192,7 +192,7 @@ html[data-material="on"] .main { background: var(--main); border-radius: 0; }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.4; cursor: default; transform: none; }
 .btn.primary { color: var(--a1-ink, #fff); background: var(--a1); box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.35), var(--shadow-1); font-weight: 600; }
-.btn.primary:hover { filter: brightness(1.06); background: var(--a1); }
+.btn.primary:hover { filter: brightness(1.03); background: var(--a1); }
 .btn.danger { color: #fff; background: var(--danger); font-weight: 600; }
 .btn.danger:hover { filter: brightness(1.08); background: var(--danger); }
 .btn.ghost { background: transparent; box-shadow: none; color: var(--label-2); }
@@ -296,10 +296,10 @@ html[data-theme="dark"] .segmented button.on { background: rgba(255, 255, 255, 0
 .scan-btn {
   position: relative; min-width: 152px; height: 42px; padding: 0 28px; border-radius: 99px; border: 0; cursor: pointer;
   font-weight: 600; font-size: 14px; color: var(--a1-ink, #fff); background: var(--a1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 8px 22px -8px color-mix(in srgb, var(--a1) 70%, transparent), var(--shadow-1);
-  transition: transform 0.15s var(--ease), filter var(--t-fast);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 6px 16px -8px color-mix(in srgb, var(--a1) 40%, transparent), var(--shadow-1);
+  transition: transform 0.2s var(--ease), box-shadow 0.25s var(--ease);
 }
-.scan-btn:hover { filter: brightness(1.06); }
+.scan-btn:hover { filter: none; }
 .scan-btn:active { transform: scale(0.97); }
 .scan-btn.ghost { color: var(--label); background: var(--glass-thick); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: inset 0 1px 0 var(--glass-spec), 0 0 0 0.5px var(--glass-edge), var(--shadow-1); }
 .scan-btn:disabled { opacity: 0.45; cursor: default; transform: none; }
@@ -593,12 +593,13 @@ html[data-motion="reduced"] .page-out-down, html[data-motion="reduced"] .page-ou
 .btn.primary, .scan-btn { overflow: hidden; isolation: isolate; }
 .btn.primary::after, .scan-btn::after {
   content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
-  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.38) 50%, transparent 70%);
-  transform: translateX(-120%); transition: transform 0.7s var(--ease);
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.14) 50%, transparent 65%);
+  transform: translateX(-120%); transition: transform 0.9s var(--ease);
 }
 .btn.primary { position: relative; }
 .btn.primary:hover::after, .scan-btn:hover::after { transform: translateX(120%); }
-.scan-btn:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 14px 30px -8px color-mix(in srgb, var(--a1) 80%, transparent), var(--shadow-1); filter: none; }
+/* Calm hover: slight lift and a deeper (not brighter) shadow */
+.scan-btn:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 10px 22px -10px color-mix(in srgb, var(--a1) 45%, transparent), 0 6px 16px -8px rgba(0, 0, 0, 0.45); filter: none; }
 .btn:not(.primary):not(.ghost):hover { box-shadow: inset 0 0 0 0.5px var(--glass-edge), inset 0 1px 0 var(--glass-spec); }
 .icon-btn:hover { box-shadow: inset 0 0 0 0.5px var(--surface-edge); }
 
@@ -658,3 +659,18 @@ html[data-motion="reduced"] .page-out-down, html[data-motion="reduced"] .page-ou
 .status-banner.bad .sb-icon { background: var(--danger); }
 .status-banner .sb-title { font-weight: 650; font-size: 15px; letter-spacing: -0.01em; }
 .status-banner .sb-sub { color: var(--label-2); font-size: 12.5px; }
+
+/* Scan location picker */
+.locs { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 640px; }
+.loc {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border: 0; border-radius: 99px; cursor: pointer;
+  font-size: 12px; font-weight: 500; color: var(--label-2); background: var(--fill-2); box-shadow: inset 0 0 0 0.5px var(--surface-edge);
+  transition: background var(--t-fast), color var(--t-fast), box-shadow var(--t-fast);
+}
+.loc:hover { background: var(--fill); color: var(--label); }
+.loc.on { color: var(--label); background: color-mix(in srgb, var(--a1) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--a1) 45%, transparent); }
+.loc.on > svg:first-child { color: var(--a1); }
+.loc.add { background: transparent; box-shadow: inset 0 0 0 1px var(--sep); }
+.loc-tag { font-size: 10.5px; padding: 0 5px; border-radius: 99px; background: var(--fill); color: var(--label-2); line-height: 16px; }
+.loc-x { border: 0; background: transparent; color: var(--label-3); cursor: pointer; display: grid; place-items: center; padding: 0; margin-right: -4px; }
+.loc-x:hover { color: var(--label); }

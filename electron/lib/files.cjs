@@ -24,13 +24,16 @@ function throttle(fn, ms = 80) {
   return (...a) => { const t = Date.now(); if (t - last > ms) { last = t; fn(...a); } };
 }
 
+/** '~' (or no roots) means the user's profile folder; drive roots like 'E:\\' are scanned whole. */
+const resolveRoots = (roots) => (roots && roots.length ? roots : ['~']).map((r) => (r === '~' ? WIN.home : r));
+
 /* ---------------- Large & old files ---------------- */
 
 async function scanLarge({ roots, minSize = 50 * 1024 * 1024 }, send, signal) {
   const found = [];
   let scanned = 0;
   const emit = throttle((dir) => send({ current: dir, scanned, found: found.length }));
-  for (const root of roots && roots.length ? roots : [WIN.home]) {
+  for (const root of resolveRoots(roots)) {
     await walk(root, (p, st) => {
       scanned++;
       if (st.size >= minSize) {
@@ -71,7 +74,7 @@ async function scanDuplicates({ roots, minSize = 1024 }, send, signal) {
   const bySize = new Map();
   let scanned = 0;
   const emit = throttle((dir) => send({ stage: 'collect', current: dir, scanned }));
-  for (const root of roots && roots.length ? roots : [WIN.home]) {
+  for (const root of resolveRoots(roots)) {
     await walk(root, (p, st) => {
       scanned++;
       if (st.size < minSize) return;

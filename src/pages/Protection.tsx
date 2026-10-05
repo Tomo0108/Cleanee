@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ShieldCheck, ShieldAlert, Radar, RefreshCw, Activity, BugOff, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { api } from '../api';
 import type { DefenderStatus } from '../api/types';
@@ -11,14 +11,25 @@ const RESOLVED = [2, 3, 4, 5, 6];
 const SEVERITY = ['不明', '低', '中', '高', '高', '深刻'];
 
 export default function Protection() {
-  const { setBadge } = useApp();
+  const { setBadge, shared, share } = useApp();
   const toast = useToast();
   const [phase, setPhase] = useState<'idle' | 'checking' | 'ready'>('idle');
   const [st, setSt] = useState<DefenderStatus | null>(null);
   const [scanning, setScanning] = useState<'quick' | 'full' | null>(null);
   const [updating, setUpdating] = useState(false);
 
-  const load = () => api.defenderStatus().then(setSt);
+  const load = () => api.defenderStatus().then((s) => { setSt(s); share({ defender: { status: s, at: Date.now() } }); });
+
+  // Show the status Smart Scan just fetched instead of checking again.
+  const adoptedAt = useRef(0);
+  useEffect(() => {
+    const d = shared.defender;
+    if (!d || d.at <= adoptedAt.current || scanning) return;
+    adoptedAt.current = d.at;
+    setSt(d.status);
+    setPhase('ready');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shared.defender]);
   const check = async () => {
     setPhase('checking');
     setBadge('protection', { busy: true });

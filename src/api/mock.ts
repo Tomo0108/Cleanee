@@ -195,7 +195,11 @@ export function createMockApi(): CleaneeApi {
       return {
         hostname: 'DESKTOP-CLEANEE', user: 'tomo', os: 'Microsoft Windows 11 Pro', build: '26100', cpuModel: 'AMD Ryzen 7 7800X3D 8-Core Processor', cores: 16, admin: false,
         cpu: rnd(0.08, 0.32), memTotal: 32 * GB, memFree, uptime: 3 * 86400 + 5 * 3600,
-        drives: [{ mount: 'C:\\', label: 'Windows', total: 953 * GB, free: 541 * GB }, { mount: 'D:\\', label: 'データ', total: 1863 * GB, free: 1220 * GB }],
+        drives: [
+          { mount: 'C:\\', label: 'Windows', total: 953 * GB, free: 541 * GB, system: true },
+          { mount: 'D:\\', label: 'データ', total: 1863 * GB, free: 1220 * GB },
+          { mount: 'E:\\', label: 'SanDisk Extreme', total: 931 * GB, free: 402 * GB, external: true },
+        ],
       };
     },
     relaunchAdmin: async () => false,

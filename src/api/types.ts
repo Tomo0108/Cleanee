@@ -1,4 +1,4 @@
-export interface Drive { mount: string; label: string; total: number; free: number }
+export interface Drive { mount: string; label: string; total: number; free: number; system?: boolean; external?: boolean }
 
 export interface SystemInfo {
   hostname: string; user: string; os: string; build: string; cpuModel: string; cores: number; admin: boolean;

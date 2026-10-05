@@ -20,12 +20,29 @@ function cpuLoad() {
   return total > 0 ? Math.max(0, Math.min(1, 1 - idle / total)) : 0;
 }
 
+/**
+ * Local fixed disks (DriveType 3) and removable media such as USB drives / SD cards (DriveType 2).
+ * USB hard disks report as fixed; BusType from Get-Disk tells them apart. Refreshed every 20 s
+ * so drives plugged in later appear without restarting.
+ */
 let drives = null;
+let drivesAt = 0;
+const DRIVES_SCRIPT = String.raw`
+$usb=@{}
+try{ Get-Partition -ErrorAction Stop | Where-Object DriveLetter | ForEach-Object { $d=Get-Disk -Number $_.DiskNumber; if($d.BusType -in 'USB','SD','MMC'){ $usb[[string]$_.DriveLetter+':']=$true } } }catch{}
+ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=2 OR DriveType=3' | Where-Object { $_.Size -gt 0 } | ForEach-Object {
+  [pscustomobject]@{ id=$_.DeviceID; label=[string]$_.VolumeName; external=($_.DriveType -eq 2 -or $usb.ContainsKey($_.DeviceID)) }
+})`;
 async function listDrives() {
-  if (!drives) {
-    const list = await psJson(`ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' | Select-Object DeviceID,VolumeName)`, []);
-    drives = list.map((d) => ({ mount: d.DeviceID + '\\', label: d.VolumeName || 'ローカル ディスク' }));
-    if (!drives.length) drives = [{ mount: WIN.systemDrive + '\\', label: 'ローカル ディスク' }];
+  if (!drives || Date.now() - drivesAt > 20000) {
+    const list = await psJson(DRIVES_SCRIPT, []);
+    const sys = WIN.systemDrive.toUpperCase();
+    drives = list.map((d) => ({
+      mount: d.id + '\\', system: d.id.toUpperCase() === sys, external: !!d.external,
+      label: d.label || (d.external ? 'リムーバブル ディスク' : 'ローカル ディスク'),
+    })).sort((a, b) => Number(b.system) - Number(a.system) || a.mount.localeCompare(b.mount));
+    if (!drives.length) drives = [{ mount: WIN.systemDrive + '\\', label: 'ローカル ディスク', system: true, external: false }];
+    drivesAt = Date.now();
   }
   const out = [];
   for (const d of drives) {

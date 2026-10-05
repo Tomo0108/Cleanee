@@ -17,7 +17,7 @@ const STAGES = [
 ] as const;
 
 export default function SmartScan() {
-  const { go, sys, setBadge, refreshSys, settings, recordFreed, theme } = useApp();
+  const { go, sys, setBadge, refreshSys, settings, recordFreed, theme, share } = useApp();
   const [phase, setPhase] = useState<Phase>('idle');
   const [stage, setStage] = useState(0);
   const [prog, setProg] = useState<JunkProgress>({ category: '', total: 0 });
@@ -37,9 +37,11 @@ export default function SmartScan() {
     const j = await api.junkScan();
     if (!j.length) { setPhase('idle'); setBadge('smart', null); return; }
     setJunk(j);
+    share({ junk: { cats: j, at: Date.now() } });
     setStage(1);
     const [d] = await Promise.all([api.defenderStatus().catch(() => ({ available: false }) as DefenderStatus), new Promise((r) => setTimeout(r, 600))]);
     setDefender(d);
+    share({ defender: { status: d, at: Date.now() } });
     setStage(2);
     const [s] = await Promise.all([api.startupList().catch(() => []), new Promise((r) => setTimeout(r, 600))]);
     setStartup(s);
@@ -60,6 +62,7 @@ export default function SmartScan() {
     setBadge('smart', { busy: true });
     setRunStage('ジャンクを削除中');
     const r = await api.junkClean(junkIds);
+    share({ junk: undefined });
     setRunStage('メモリを解放中');
     await api.runTask('freeRam');
     setRunStage('DNS キャッシュを更新中');

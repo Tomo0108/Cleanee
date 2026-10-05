@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { ChartPie, HardDrive, ChevronRight, FolderOpen, Folder, File, MoreHorizontal, FolderPlus, ArrowLeft } from 'lucide-react';
+import { ChartPie, HardDrive, Usb, ChevronRight, FolderOpen, Folder, File, MoreHorizontal, FolderPlus, ArrowLeft } from 'lucide-react';
 import { api } from '../api';
 import type { SpaceNode } from '../api/types';
 import { useApp } from '../App';
@@ -112,7 +112,7 @@ export default function SpaceLens() {
                 <div className="top">
                   <Ring ratio={(d.total - d.free) / d.total} label={`${Math.round(((d.total - d.free) / d.total) * 100)}%`} size={56} color={(d.total - d.free) / d.total > 0.9 ? 'var(--danger)' : undefined} />
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', gap: 6 }}><HardDrive size={16} />{d.label} ({d.mount.replace('\\', '')})</div>
+                    <div style={{ fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', gap: 6 }}>{d.external ? <Usb size={16} /> : <HardDrive size={16} />}{d.label} ({d.mount.replace('\\', '')}){d.external && <span className="loc-tag">外付け</span>}{d.system && <span className="loc-tag">システム</span>}</div>
                     <div className="muted" style={{ fontSize: 12.5 }}>{formatBytes(d.free)} 空き / {formatBytes(d.total, 0)}</div>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { FileStack, CalendarClock, FolderOpen, LayoutGrid, Search, FolderPlus, X } from 'lucide-react';
+import { FileStack, CalendarClock, FolderOpen, LayoutGrid, Search } from 'lucide-react';
 import { HELP } from '../help';
 import { api } from '../api';
 import type { FileKind, LargeFile } from '../api/types';
@@ -8,6 +8,7 @@ import { formatBytes, formatNumber, timeAgo, prettyPath, dirname } from '../lib/
 import { KIND_META } from '../lib/icons';
 import { IdleHero, ScanningHero, ScanDock, PageHead, ListHead, Checkbox, Segmented, Modal, useProgress, useToast } from '../components/ui';
 import { DoneHero } from '../components/Results';
+import { ScanLocations } from '../components/ScanLocations';
 
 type Phase = 'idle' | 'scanning' | 'results' | 'done';
 type Age = 'all' | '6m' | '1y';
@@ -17,7 +18,7 @@ export default function LargeFiles() {
   const { setBadge, refreshSys, recordFreed } = useApp();
   const toast = useToast();
   const [phase, setPhase] = useState<Phase>('idle');
-  const [roots, setRoots] = useState<string[]>([]);
+  const [roots, setRoots] = useState<string[]>(['~']);
   const [minMb, setMinMb] = useState<'50' | '100' | '500' | '1024'>('100');
   const [files, setFiles] = useState<LargeFile[]>([]);
   const [prog, setProg] = useState<{ current?: string; scanned: number; found: number }>({ scanned: 0, found: 0 });
@@ -41,10 +42,6 @@ export default function LargeFiles() {
     setBadge('large', r.length ? { text: String(r.length) } : null);
   };
 
-  const addFolder = async () => {
-    const p = await api.pickFolders();
-    if (p.length) setRoots((r) => [...new Set([...r, ...p])]);
-  };
 
   const shown = useMemo(() => files.filter((f) => {
     if (kind !== 'all' && f.kind !== kind) return false;
@@ -76,10 +73,9 @@ export default function LargeFiles() {
       <>
         <IdleHero icon={FileStack} title="大容量・古いファイル" tagline={HELP.large.tagline} onActivate={scan} />
         <ScanDock onClick={scan} hint={
-          <span style={{ display: 'inline-flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
             <Segmented value={minMb} onChange={setMinMb} options={[{ value: '50', label: '50 MB 以上' }, { value: '100', label: '100 MB 以上' }, { value: '500', label: '500 MB 以上' }, { value: '1024', label: '1 GB 以上' }]} />
-            {roots.map((r) => <span key={r} className="chip">{prettyPath(r)}<X size={12} style={{ cursor: 'pointer' }} onClick={() => setRoots((x) => x.filter((y) => y !== r))} /></span>)}
-            <button className="btn sm ghost" onClick={addFolder}><FolderPlus size={14} />{roots.length ? '追加' : 'ユーザーフォルダ'}</button>
+            <ScanLocations value={roots} onChange={setRoots} />
           </span>
         } />
       </>

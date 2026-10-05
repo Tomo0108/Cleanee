@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import logo from './assets/logo.png';
 import { HardDrive, MemoryStick, Cpu, Settings2 } from 'lucide-react';
 import { api } from './api';
-import type { Settings, SystemInfo } from './api/types';
+import type { DefenderStatus, JunkCategory, Settings, SystemInfo } from './api/types';
 import { MODULES, moduleById, tint, inkFor, type ModuleId } from './modules';
 import { formatBytes } from './lib/format';
 import { ToastProvider } from './components/ui';
@@ -32,6 +32,13 @@ interface AppCtx {
   updateSettings: (patch: Partial<Settings>) => void;
   /** Adds freed bytes to the lifetime statistics. */
   recordFreed: (bytes: number) => void;
+  /** Results shared between Smart Scan and the detail modules, so "詳細を確認" doesn't rescan. */
+  shared: SharedResults;
+  share: (patch: Partial<SharedResults>) => void;
+}
+export interface SharedResults {
+  junk?: { cats: JunkCategory[]; at: number };
+  defender?: { status: DefenderStatus; at: number };
 }
 const Ctx = createContext<AppCtx>(null!);
 export const useApp = () => useContext(Ctx);
@@ -62,6 +69,8 @@ export default function App() {
   const [badges, setBadges] = useState<Partial<Record<ModuleId, Badge>>>({});
   const [settings, setSettings] = useState<Settings | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [shared, setShared] = useState<SharedResults>({});
+  const share = useCallback((patch: Partial<SharedResults>) => setShared((s) => ({ ...s, ...patch })), []);
 
   // Page transition: the previous page plays an exit animation while the new one enters,
   // sliding in the direction of travel through the sidebar.
@@ -167,7 +176,7 @@ export default function App() {
   const mod = moduleById(active);
   const accent = tint(mod, theme);
   const style = { '--a1': accent, '--a1-ink': inkFor(accent) } as CSSProperties;
-  const ctx = useMemo(() => ({ go, sys, refreshSys, setBadge, settings, theme, updateSettings, recordFreed }), [go, sys, refreshSys, setBadge, settings, theme, updateSettings, recordFreed]);
+  const ctx = useMemo(() => ({ go, sys, refreshSys, setBadge, settings, theme, updateSettings, recordFreed, shared, share }), [go, sys, refreshSys, setBadge, settings, theme, updateSettings, recordFreed, shared, share]);
 
   const groups: { label?: string; items: typeof MODULES }[] = [];
   for (const m of MODULES) {

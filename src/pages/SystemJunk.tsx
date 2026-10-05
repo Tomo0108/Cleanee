@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Trash2, HardDrive } from 'lucide-react';
 import { api } from '../api';
 import type { CleanResult, JunkCategory, JunkProgress } from '../api/types';
@@ -11,7 +11,7 @@ import { JunkList, AdminNotice, DoneHero } from '../components/Results';
 type Phase = 'idle' | 'scanning' | 'results' | 'cleaning' | 'done';
 
 export default function SystemJunk() {
-  const { setBadge, refreshSys, sys, recordFreed } = useApp();
+  const { setBadge, refreshSys, sys, recordFreed, shared, share } = useApp();
   const toast = useToast();
   const [phase, setPhase] = useState<Phase>('idle');
   const [cats, setCats] = useState<JunkCategory[]>([]);
@@ -22,6 +22,22 @@ export default function SystemJunk() {
   const [result, setResult] = useState<CleanResult | null>(null);
 
   useProgress<JunkProgress>('junk', setProg);
+
+  // Adopt a newer result from Smart Scan instead of scanning again.
+  const adoptedAt = useRef(0);
+  const show = (r: JunkCategory[]) => {
+    setCats(r);
+    setExcluded(new Set());
+    setSelected(new Set(r.filter((c) => c.selected && c.size > 0).map((c) => c.id)));
+    setPhase('results');
+  };
+  useEffect(() => {
+    const j = shared.junk;
+    if (!j || j.at <= adoptedAt.current || phase === 'scanning' || phase === 'cleaning') return;
+    adoptedAt.current = j.at;
+    show(j.cats);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shared.junk]);
   useProgress<{ index: number; count: number }>('junk-clean', (d) => setCleanProg(d.index / d.count));
 
   const scan = async () => {
@@ -30,10 +46,9 @@ export default function SystemJunk() {
     setBadge('junk', { busy: true });
     const r = await api.junkScan();
     if (!r.length) { setPhase('idle'); setBadge('junk', null); return; }
-    setCats(r);
-    setExcluded(new Set());
-    setSelected(new Set(r.filter((c) => c.selected && c.size > 0).map((c) => c.id)));
-    setPhase('results');
+    adoptedAt.current = Date.now();
+    share({ junk: { cats: r, at: adoptedAt.current } });
+    show(r);
   };
 
   const clean = async () => {
@@ -41,6 +56,7 @@ export default function SystemJunk() {
     setCleanProg(0);
     setBadge('junk', { busy: true });
     const r = await api.junkClean([...selected], [...excluded]);
+    share({ junk: undefined });
     setResult(r);
     setPhase('done');
     setBadge('junk', null);
