@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, AlertTriangle, Info, X, AppWindow, type LucideIcon } from 'lucide-react';
+import { Check, AlertTriangle, Info, X, AppWindow, Loader2, type LucideIcon } from 'lucide-react';
 import { api } from '../api';
 import { MODULES } from '../modules';
 import { bytesParts } from '../lib/format';
@@ -73,10 +73,24 @@ export function BigBytes({ bytes, suffix }: { bytes: number; suffix?: string }) 
   return <div className="big">{n}<small>{u}{suffix}</small></div>;
 }
 
+/**
+ * The single page-level action button (スキャン, 実行, クリーンアップ, ごみ箱へ移動, 停止 …):
+ * one size, look and motion everywhere. `busy` swaps in a spinner and blocks clicks.
+ */
+export function ActionButton({ children, onClick, ghost, danger, disabled, busy, busyLabel }: {
+  children: ReactNode; onClick: () => void; ghost?: boolean; danger?: boolean; disabled?: boolean; busy?: boolean; busyLabel?: ReactNode;
+}) {
+  return (
+    <button className={`action-btn ${ghost ? 'ghost' : ''} ${danger ? 'danger' : ''}`} onClick={onClick} disabled={disabled || busy} aria-busy={busy || undefined}>
+      {busy ? <><Loader2 className="spin" />{busyLabel ?? children}</> : children}
+    </button>
+  );
+}
+
 export function ScanDock({ label = 'スキャン', onClick, hint, ghost, disabled }: { label?: string; onClick: () => void; hint?: ReactNode; ghost?: boolean; disabled?: boolean }) {
   return (
     <div className="scan-dock">
-      <button className={`scan-btn ${ghost ? 'ghost' : ''}`} onClick={onClick} disabled={disabled}>{label}</button>
+      <ActionButton ghost={ghost} disabled={disabled} onClick={onClick}>{label}</ActionButton>
       <div className="scan-hint">{hint}</div>
     </div>
   );
@@ -107,6 +121,60 @@ export function ListHead({ cols }: { cols: Col[] }) {
       {cols.map((c, i) => (
         <span key={i} style={{ width: c.w, flex: c.grow ? 1 : 'none', minWidth: c.grow ? 0 : undefined, textAlign: c.align || 'left' }}>{c.label}</span>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Scrolling list that only mounts the rows in view (plus a small margin), so result lists with
+ * tens of thousands of entries stay as light as a short one. Rows must share one fixed height.
+ */
+export function VirtualList<T>({ items, rowHeight, render, overscan = 6, className = '', empty, scrollTo, onKeyDown, label }: {
+  items: T[]; rowHeight: number; render: (item: T, index: number) => ReactNode; overscan?: number; className?: string;
+  empty?: ReactNode; scrollTo?: number; onKeyDown?: (e: ReactKeyboardEvent<HTMLDivElement>) => void; label?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState({ top: 0, height: 800 });
+  const frame = useRef(0);
+
+  useLayoutEffect(() => {
+    const el = ref.current!;
+    const measure = () => setView({ top: el.scrollTop, height: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => { ro.disconnect(); cancelAnimationFrame(frame.current); };
+  }, []);
+
+  // Keep a keyboard-selected row in view.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || scrollTo === undefined || scrollTo < 0) return;
+    const y = scrollTo * rowHeight;
+    if (y < el.scrollTop) el.scrollTop = y;
+    else if (y + rowHeight > el.scrollTop + el.clientHeight) el.scrollTop = y + rowHeight - el.clientHeight;
+  }, [scrollTo, rowHeight]);
+
+  const onScroll = () => {
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      const el = ref.current;
+      if (el) setView({ top: el.scrollTop, height: el.clientHeight });
+    });
+  };
+
+  const start = Math.max(0, Math.floor(view.top / rowHeight) - overscan);
+  const end = Math.min(items.length, Math.ceil((view.top + view.height) / rowHeight) + overscan);
+  const rows = [];
+  for (let i = start; i < end; i++) rows.push(render(items[i], i));
+
+  return (
+    <div ref={ref} className={`glass-scroll vlist ${className}`} onScroll={onScroll} onKeyDown={onKeyDown} tabIndex={onKeyDown ? 0 : undefined} aria-label={label}>
+      {!items.length ? empty : (
+        <div className="vlist-body" style={{ height: items.length * rowHeight + 8 }}>
+          <div className="vlist-rows" style={{ transform: `translateY(${start * rowHeight}px)` }}>{rows}</div>
+        </div>
+      )}
     </div>
   );
 }

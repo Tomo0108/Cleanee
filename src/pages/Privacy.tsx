@@ -5,7 +5,7 @@ import { api } from '../api';
 import type { CleanResult, PrivacyGroup } from '../api/types';
 import { useApp } from '../App';
 import { formatBytes } from '../lib/format';
-import { IdleHero, ScanningHero, ScanDock, PageHead, Checkbox, useToast } from '../components/ui';
+import { IdleHero, ScanningHero, ScanDock, PageHead, Checkbox, useToast, ActionButton } from '../components/ui';
 import { DoneHero } from '../components/Results';
 
 type Phase = 'idle' | 'scanning' | 'results' | 'cleaning' | 'done';
@@ -101,7 +101,7 @@ export default function Privacy() {
         <span className="muted">{count} 項目</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <div className="sum"><b>{formatBytes(selSize)}</b></div>
-          <button className="btn primary pill big" disabled={!count} onClick={clean}>消去する</button>
+          <ActionButton disabled={!count} onClick={clean}>消去する</ActionButton>
         </div>
       </div>
     </>

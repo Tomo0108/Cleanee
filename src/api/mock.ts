@@ -265,7 +265,9 @@ export function createMockApi(): CleaneeApi {
     dupScan: async () => {
       const paths = DUPS.flatMap((g) => g.files.map((f) => f.path));
       const half = Math.floor(paths.length / 2);
-      const ok = await simulate('dup', paths, 3000, (i, p) => (i < half ? { stage: 'collect', current: p, scanned: (i + 1) * 2410 } : { stage: 'hash', current: p, hashed: i - half + 1, total: paths.length - half }));
+      const ok = await simulate('dup', paths, 3000, (i, p) => (i < half
+        ? { stage: 'collect', current: p, scanned: (i + 1) * 2410 }
+        : { stage: 'hash', current: p, bytes: (i - half + 1) * 96 * MB, totalBytes: (paths.length - half) * 96 * MB }));
       return ok ? JSON.parse(JSON.stringify(DUPS)) : [];
     },
     spaceScan: async (root) => {

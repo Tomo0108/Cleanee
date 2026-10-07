@@ -41,12 +41,6 @@ function addFreed(bytes) {
 }
 
 /** True when `p` lies inside one of the user's excluded folders. */
-function isExcluded(p) {
-  const lower = p.toLowerCase();
-  return get().excludes.some((e) => {
-    const x = e.toLowerCase().replace(/[\\/]+$/, '');
-    return lower === x || lower.startsWith(x + path.sep);
-  });
-}
+const isExcluded = (p) => require('./util.cjs').isUnder(p, get().excludes);
 
 module.exports = { get, set, addFreed, isExcluded };

@@ -6,13 +6,14 @@ import type { FileKind, LargeFile } from '../api/types';
 import { useApp } from '../App';
 import { formatBytes, formatNumber, timeAgo, prettyPath, dirname } from '../lib/format';
 import { KIND_META } from '../lib/icons';
-import { IdleHero, ScanningHero, ScanDock, PageHead, ListHead, Checkbox, Segmented, Modal, useProgress, useToast } from '../components/ui';
+import { IdleHero, ScanningHero, ScanDock, PageHead, ListHead, Checkbox, Segmented, Modal, VirtualList, useProgress, useToast, ActionButton } from '../components/ui';
 import { DoneHero } from '../components/Results';
 import { ScanLocations } from '../components/ScanLocations';
 
 type Phase = 'idle' | 'scanning' | 'results' | 'done';
 type Age = 'all' | '6m' | '1y';
 const DAY = 86400000;
+const ROW = 56;
 
 export default function LargeFiles() {
   const { setBadge, refreshSys, recordFreed } = useApp();
@@ -51,9 +52,14 @@ export default function LargeFiles() {
     return !q || f.name.toLowerCase().includes(q.toLowerCase());
   }), [files, kind, age, q]);
 
-  const selFiles = files.filter((f) => sel.has(f.path));
+  const selFiles = useMemo(() => files.filter((f) => sel.has(f.path)), [files, sel]);
   const selSize = selFiles.reduce((a, f) => a + f.size, 0);
-  const kinds = (Object.keys(KIND_META) as FileKind[]).map((k) => ({ k, n: files.filter((f) => f.kind === k).length, size: files.filter((f) => f.kind === k).reduce((a, f) => a + f.size, 0) })).filter((x) => x.n);
+  const kinds = useMemo(() => {
+    const n = new Map<FileKind, number>();
+    for (const f of files) n.set(f.kind, (n.get(f.kind) || 0) + 1);
+    return (Object.keys(KIND_META) as FileKind[]).filter((k) => n.has(k)).map((k) => ({ k, n: n.get(k)! }));
+  }, [files]);
+  const total = useMemo(() => files.reduce((a, f) => a + f.size, 0), [files]);
 
   const remove = async () => {
     setConfirm(false);
@@ -100,7 +106,7 @@ export default function LargeFiles() {
 
   return (
     <>
-      <PageHead icon={FileStack} title="大容量・古いファイル" sub={`${files.length} 個 ・ 合計 ${formatBytes(files.reduce((a, f) => a + f.size, 0))}`}>
+      <PageHead icon={FileStack} title="大容量・古いファイル" sub={`${formatNumber(files.length)} 個 ・ 合計 ${formatBytes(total)}`}>
         <div className="search"><Search size={15} /><input placeholder="ファイル名で検索" value={q} onChange={(e) => setQ(e.target.value)} /></div>
         <button className="btn ghost" onClick={() => setPhase('idle')}>新しいスキャン</button>
       </PageHead>
@@ -116,28 +122,25 @@ export default function LargeFiles() {
             <button key={k} className={age === k ? 'on' : ''} onClick={() => setAge(k)}><CalendarClock size={17} />{l}</button>
           ))}
         </div>
-        <div className="glass-scroll">
+        <div className="list-col">
           <ListHead cols={[{ w: 20 }, { w: 38 }, { label: 'ファイル', grow: true }, { label: '最終使用', w: 90, align: 'right' }, { label: 'サイズ', w: 84, align: 'right' }, { w: 32 }]} />
-          <div className="rows">
-            {shown.map((f, i) => {
-              const M = KIND_META[f.kind];
-              const on = sel.has(f.path);
-              return (
-                <label key={f.path} className={`row ${on ? 'sel' : ''}`} style={{ cursor: 'pointer', animation: `rise .35s ${Math.min(i, 14) * 22}ms both` }}>
-                  <Checkbox checked={on} onChange={(v) => setSel((s) => { const n = new Set(s); v ? n.add(f.path) : n.delete(f.path); return n; })} />
-                  <div className="kind-icon" style={{ '--k': M.color } as CSSProperties}><M.icon size={18} /></div>
-                  <div className="grow">
-                    <div className="t">{f.name}</div>
-                    <div className="sub mono">{prettyPath(dirname(f.path))}</div>
-                  </div>
-                  <div className="meta" title="最終更新">{timeAgo(Math.max(f.mtime, f.atime))}</div>
-                  <div className="num">{formatBytes(f.size)}</div>
-                  <button className="icon-btn row-action" aria-label="場所を表示" onClick={(e) => { e.preventDefault(); api.reveal(f.path); }}><FolderOpen size={15} /></button>
-                </label>
-              );
-            })}
-            {!shown.length && <div className="empty" style={{ minHeight: 220 }}>条件に一致するファイルはありません</div>}
-          </div>
+          <VirtualList items={shown} rowHeight={ROW} empty={<div className="empty" style={{ minHeight: 220 }}>条件に一致するファイルはありません</div>} render={(f) => {
+            const M = KIND_META[f.kind];
+            const on = sel.has(f.path);
+            return (
+              <label key={f.path} className={`row ${on ? 'sel' : ''}`} style={{ cursor: 'pointer', height: ROW }}>
+                <Checkbox checked={on} onChange={(v) => setSel((s) => { const n = new Set(s); v ? n.add(f.path) : n.delete(f.path); return n; })} />
+                <div className="kind-icon" style={{ '--k': M.color } as CSSProperties}><M.icon size={18} /></div>
+                <div className="grow">
+                  <div className="t">{f.name}</div>
+                  <div className="sub mono">{prettyPath(dirname(f.path))}</div>
+                </div>
+                <div className="meta" title="最終更新">{timeAgo(Math.max(f.mtime, f.atime))}</div>
+                <div className="num">{formatBytes(f.size)}</div>
+                <button className="icon-btn row-action" aria-label="場所を表示" onClick={(e) => { e.preventDefault(); api.reveal(f.path); }}><FolderOpen size={15} /></button>
+              </label>
+            );
+          }} />
         </div>
       </div>
       <div className="footer-bar">
@@ -148,7 +151,7 @@ export default function LargeFiles() {
         </label>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <div className="sum"><span>{sel.size} 個</span><b>{formatBytes(selSize)}</b></div>
-          <button className="btn primary pill big" disabled={!sel.size} onClick={() => setConfirm(true)}>ごみ箱へ移動</button>
+          <ActionButton disabled={!sel.size} onClick={() => setConfirm(true)}>ごみ箱へ移動</ActionButton>
         </div>
       </div>
       {confirm && (

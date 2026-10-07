@@ -75,6 +75,8 @@ html[data-theme="light"] {
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --t-fast: 140ms;
   --t-panel: 220ms;
+  /* Shared by every button so hover / press feel identical everywhere */
+  --btn-motion: transform 0.2s var(--ease), box-shadow 0.25s var(--ease), background-color var(--t-fast), color var(--t-fast), opacity var(--t-fast);
   /* legacy aliases used by inline styles */
   --text: var(--label);
   --muted: var(--label-2);
@@ -164,9 +166,12 @@ html[data-material="on"] .main { background: var(--main); border-radius: 0; }
 .page[hidden] { display: none; }
 
 .bg-fx { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.ambient i { position: absolute; border-radius: 50%; filter: blur(110px); opacity: var(--ambient-opacity); background: var(--a1); will-change: transform; }
-.ambient .f1 { width: 620px; height: 520px; top: -260px; right: -140px; animation: drift1 32s ease-in-out infinite alternate; }
-.ambient .f2 { width: 560px; height: 480px; bottom: -280px; left: 80px; opacity: calc(var(--ambient-opacity) * 0.7); animation: drift2 38s ease-in-out infinite alternate; }
+.ambient i { position: absolute; border-radius: 50%; filter: blur(110px); opacity: var(--ambient-opacity); background: var(--a1); will-change: transform, opacity; }
+/* Drift (transform) and fade (opacity) run on different, unrelated periods so the light never
+   visibly loops; the staggered fades keep the overall brightness roughly constant. */
+.ambient .f1 { width: 620px; height: 520px; top: -260px; right: -140px; animation: drift1 32s ease-in-out infinite alternate, fadeA 19s ease-in-out infinite alternate; }
+.ambient .f2 { width: 560px; height: 480px; bottom: -280px; left: 80px; opacity: calc(var(--ambient-opacity) * 0.7); animation: drift2 38s ease-in-out infinite alternate, fadeB 23s ease-in-out -11s infinite alternate; }
+.ambient .f3 { width: 520px; height: 440px; top: 30%; left: 42%; opacity: calc(var(--ambient-opacity) * 0.5); background: color-mix(in srgb, var(--a1) 70%, #fff); animation: drift3 44s ease-in-out infinite alternate, fadeC 29s ease-in-out -7s infinite alternate; }
 
 /* ---------- Page header ---------- */
 
@@ -175,7 +180,7 @@ html[data-material="on"] .main { background: var(--main); border-radius: 0; }
 .head-icon { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; flex: none; color: var(--a1-ink, #fff); background: var(--a1); box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.35), var(--shadow-1); }
 .head-icon svg { width: 19px; height: 19px; }
 .head-group { font-size: 11.5px; font-weight: 500; color: var(--label-3); line-height: 1.3; }
-.page-head h2 { font-size: 21px; margin: 0; font-weight: 650; line-height: 1.25; letter-spacing: -0.012em; }
+.page-head h2 { white-space: nowrap; font-size: 21px; margin: 0; font-weight: 650; line-height: 1.25; letter-spacing: -0.012em; }
 .head-sub { align-self: flex-end; margin: 0 0 2px 4px; color: var(--label-2); font-size: 13px; white-space: nowrap; }
 .head-sub::before { content: '—'; margin-right: 8px; color: var(--label-3); }
 .head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
@@ -186,27 +191,22 @@ html[data-material="on"] .main { background: var(--main); border-radius: 0; }
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 14px;
   border-radius: 99px; border: 0; cursor: pointer; font-weight: 500; font-size: 13px; white-space: nowrap;
   color: var(--label); background: var(--fill-2); box-shadow: inset 0 0 0 0.5px var(--surface-edge);
-  transition: background var(--t-fast), transform 0.1s, filter var(--t-fast);
+  transition: var(--btn-motion);
 }
 .btn:hover { background: var(--fill); }
-.btn:active { transform: scale(0.97); }
-.btn:disabled { opacity: 0.4; cursor: default; transform: none; }
+.btn:active, .action-btn:active { transform: scale(0.97); transition-duration: 0.1s; }
+.btn:disabled, .action-btn:disabled { opacity: 0.4; cursor: default; transform: none; box-shadow: none; }
 .btn.primary { color: var(--a1-ink, #fff); background: var(--a1); font-weight: 600;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 12px -6px color-mix(in srgb, var(--a1) 40%, transparent), var(--shadow-1);
-  transition: transform 0.2s var(--ease), box-shadow 0.25s var(--ease), background-color var(--t-fast); }
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 12px -6px color-mix(in srgb, var(--a1) 40%, transparent), var(--shadow-1); }
 .btn.danger { color: #fff; background: var(--danger); font-weight: 600;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 12px -6px color-mix(in srgb, var(--danger) 40%, transparent), var(--shadow-1);
-  transition: transform 0.2s var(--ease), box-shadow 0.25s var(--ease); }
-/* Same calm hover as the scan button: slight lift + deeper (not brighter) shadow */
-.btn.primary:hover, .btn.danger:hover { transform: translateY(-1px); filter: none; }
-.btn.primary:hover { background: var(--a1); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 18px -9px color-mix(in srgb, var(--a1) 45%, transparent), 0 5px 12px -7px rgba(0, 0, 0, 0.45); }
-.btn.danger:hover { background: var(--danger); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 8px 18px -9px color-mix(in srgb, var(--danger) 45%, transparent), 0 5px 12px -7px rgba(0, 0, 0, 0.45); }
-.btn.primary:active, .btn.danger:active { transform: scale(0.97); }
-.btn.primary:disabled, .btn.danger:disabled { transform: none; box-shadow: none; }
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 12px -6px color-mix(in srgb, var(--danger) 40%, transparent), var(--shadow-1); }
+/* Every filled button shares the calm hover: slight lift + deeper (not brighter) shadow */
+.btn.primary:hover:not(:disabled), .btn.danger:hover:not(:disabled) { transform: translateY(-1px); filter: none; }
+.btn.primary:hover:not(:disabled) { background: var(--a1); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 18px -9px color-mix(in srgb, var(--a1) 45%, transparent), 0 5px 12px -7px rgba(0, 0, 0, 0.45); }
+.btn.danger:hover:not(:disabled) { background: var(--danger); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 8px 18px -9px color-mix(in srgb, var(--danger) 45%, transparent), 0 5px 12px -7px rgba(0, 0, 0, 0.45); }
 .btn.ghost { background: transparent; box-shadow: none; color: var(--label-2); }
 .btn.ghost:hover { background: var(--hover); color: var(--label); }
 .btn.sm { height: 26px; padding: 0 11px; font-size: 12.5px; }
-.btn.big { height: 36px; padding: 0 22px; font-size: 13.5px; }
 .icon-btn { width: 28px; height: 28px; padding: 0; border-radius: 7px; border: 0; background: transparent; color: var(--label-2); display: grid; place-items: center; cursor: pointer; transition: background var(--t-fast), color var(--t-fast); }
 .icon-btn:hover { background: var(--hover); color: var(--label); }
 
@@ -246,7 +246,7 @@ html[data-theme="dark"] .segmented button.on { background: rgba(255, 255, 255, 0
 
 /* Floating glass action bar */
 .footer-bar {
-  flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 12px; padding: 8px 8px 8px 16px; border-radius: 99px;
+  flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 12px; padding: 7px 7px 7px 18px; border-radius: 99px;
   background: var(--glass-thick); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
   border: 0.5px solid var(--glass-edge); box-shadow: inset 0 1px 0 var(--glass-spec), var(--shadow-2);
 }
@@ -301,16 +301,17 @@ html[data-theme="dark"] .segmented button.on { background: rgba(255, 255, 255, 0
 .medal-ring.sweep { animation: spinRing 1.4s linear infinite; }
 
 .scan-dock { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 6px 0 2px; flex: none; }
-.scan-btn {
-  position: relative; min-width: 152px; height: 42px; padding: 0 28px; border-radius: 99px; border: 0; cursor: pointer;
-  font-weight: 600; font-size: 14px; color: var(--a1-ink, #fff); background: var(--a1);
+/* The one page-level action button: スキャン / 実行 / クリーンアップ / ごみ箱へ移動 / 停止 … */
+.action-btn {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-width: 152px; height: 42px; padding: 0 28px; border-radius: 99px; border: 0; cursor: pointer; white-space: nowrap; flex: none;
+  font: inherit; font-weight: 600; font-size: 14px; color: var(--a1-ink, #fff); background: var(--a1);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 6px 16px -8px color-mix(in srgb, var(--a1) 40%, transparent), var(--shadow-1);
-  transition: transform 0.2s var(--ease), box-shadow 0.25s var(--ease);
+  transition: var(--btn-motion);
 }
-.scan-btn:hover { filter: none; }
-.scan-btn:active { transform: scale(0.97); }
-.scan-btn.ghost { color: var(--label); background: var(--glass-thick); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: inset 0 1px 0 var(--glass-spec), 0 0 0 0.5px var(--glass-edge), var(--shadow-1); }
-.scan-btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+.action-btn.danger { color: #fff; background: var(--danger); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 6px 16px -8px color-mix(in srgb, var(--danger) 40%, transparent), var(--shadow-1); }
+.action-btn.ghost { color: var(--label); background: var(--glass-thick); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: inset 0 1px 0 var(--glass-spec), 0 0 0 0.5px var(--glass-edge), var(--shadow-1); }
+.action-btn .spin { width: 16px; height: 16px; }
 .scan-hint { font-size: 12.5px; color: var(--label-2); min-height: 18px; max-width: 560px; text-align: center; }
 
 .scan-status { text-align: center; }
@@ -327,6 +328,11 @@ html[data-theme="dark"] .segmented button.on { background: rgba(255, 255, 255, 0
   background: var(--surface); border: 0.5px solid var(--surface-edge); border-radius: var(--radius); box-shadow: var(--shadow-1);
 }
 .rows:empty { display: none; }
+/* Virtualised list: the card spans the full scroll height; only visible rows are mounted. */
+.vlist { outline: none; }
+.vlist-body { position: relative; margin-bottom: 8px; background: var(--surface); border: 0.5px solid var(--surface-edge); border-radius: var(--radius); box-shadow: var(--shadow-1); }
+.vlist-rows { position: absolute; top: 4px; left: 4px; right: 4px; display: grid; grid-template-columns: minmax(0, 1fr); will-change: transform; }
+.vlist-rows > .row { overflow: hidden; }
 .row { position: relative; display: flex; align-items: center; gap: 14px; padding: 8px 11px; border-radius: 8px; transition: background var(--t-fast); }
 .row + .row::before { content: ''; position: absolute; top: 0; left: 11px; right: 11px; height: 0.5px; background: var(--sep); }
 .row:hover { background-color: var(--hover); }
@@ -374,9 +380,10 @@ html[data-theme="dark"] .segmented button.on { background: rgba(255, 255, 255, 0
 .cat-item.ex .p, .cat-item.ex .s { text-decoration: line-through; opacity: 0.5; }
 
 /* Source list (two-pane) */
-.split { flex: 1; min-height: 0; display: grid; grid-template-columns: 196px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 20px; }
+.split { flex: 1; min-height: 0; display: grid; grid-template-columns: 212px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 20px; }
+.list-col { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .side-list { display: grid; align-content: start; gap: 1px; overflow-y: auto; }
-.side-list button { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 9px; border: 0; border-radius: 7px; background-color: transparent; cursor: pointer; color: var(--label); text-align: left; font-size: 13px; transition: background var(--t-fast); }
+.side-list button { white-space: nowrap; display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 9px; border: 0; border-radius: 7px; background-color: transparent; cursor: pointer; color: var(--label); text-align: left; font-size: 13px; transition: background var(--t-fast); }
 .side-list button svg { color: var(--a1); flex: none; width: 16px; height: 16px; }
 .side-list button:hover { background-color: var(--hover); }
 .side-list button.on { background-color: var(--fill); font-weight: 600; }
@@ -561,6 +568,10 @@ html[data-theme="dark"] .segmented button.on { background: rgba(255, 255, 255, 0
 @keyframes pop { from { opacity: 0; } }
 @keyframes drift1 { to { transform: translate(-140px, 90px) scale(1.12); } }
 @keyframes drift2 { to { transform: translate(160px, -80px) scale(1.1); } }
+@keyframes drift3 { from { transform: translate(-120px, 40px) scale(0.9); } to { transform: translate(140px, -60px) scale(1.08); } }
+@keyframes fadeA { from { opacity: calc(var(--ambient-opacity) * 0.35); } to { opacity: var(--ambient-opacity); } }
+@keyframes fadeB { from { opacity: calc(var(--ambient-opacity) * 0.9); } to { opacity: calc(var(--ambient-opacity) * 0.2); } }
+@keyframes fadeC { from { opacity: 0; } to { opacity: calc(var(--ambient-opacity) * 0.6); } }
 
 /* Reduced motion (OS setting or "アニメーション: オフ") */
 html[data-motion="reduced"] *:not(.page),
@@ -598,17 +609,19 @@ html[data-motion="reduced"] .page-out-down, html[data-motion="reduced"] .page-ou
 .drive-card:hover { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--a1) 60%, transparent), 0 14px 32px -12px rgba(0, 0, 0, 0.45); }
 
 /* Specular sweep across prominent buttons */
-.btn.primary, .btn.danger, .scan-btn { overflow: hidden; isolation: isolate; }
-.btn.primary::after, .btn.danger::after, .scan-btn::after {
+.btn.primary, .btn.danger, .action-btn { overflow: hidden; isolation: isolate; }
+.btn.primary::after, .btn.danger::after, .action-btn::after {
   content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
   background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.14) 50%, transparent 65%);
   transform: translateX(-120%); transition: transform 0.9s var(--ease);
 }
 .btn.primary, .btn.danger { position: relative; }
-.btn.primary:hover::after, .btn.danger:hover::after, .scan-btn:hover::after { transform: translateX(120%); }
-.btn:disabled::after { display: none; }
+.btn.primary:hover::after, .btn.danger:hover::after, .action-btn:hover::after { transform: translateX(120%); }
+.btn:disabled::after, .action-btn:disabled::after { display: none; }
 /* Calm hover: slight lift and a deeper (not brighter) shadow */
-.scan-btn:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 10px 22px -10px color-mix(in srgb, var(--a1) 45%, transparent), 0 6px 16px -8px rgba(0, 0, 0, 0.45); filter: none; }
+.action-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 10px 22px -10px color-mix(in srgb, var(--a1) 45%, transparent), 0 6px 16px -8px rgba(0, 0, 0, 0.45); }
+.action-btn.danger:hover:not(:disabled) { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 10px 22px -10px color-mix(in srgb, var(--danger) 45%, transparent), 0 6px 16px -8px rgba(0, 0, 0, 0.45); }
+.action-btn.ghost:hover:not(:disabled) { box-shadow: inset 0 1px 0 var(--glass-spec), 0 0 0 0.5px var(--glass-edge), 0 6px 16px -8px rgba(0, 0, 0, 0.35); }
 .btn:not(.primary):not(.danger):not(.ghost):hover { box-shadow: inset 0 0 0 0.5px var(--glass-edge), inset 0 1px 0 var(--glass-spec); }
 .icon-btn:hover { box-shadow: inset 0 0 0 0.5px var(--surface-edge); }
 
@@ -683,3 +696,82 @@ html[data-motion="reduced"] .page-out-down, html[data-motion="reduced"] .page-ou
 .loc-tag { font-size: 10.5px; padding: 0 5px; border-radius: 99px; background: var(--fill); color: var(--label-2); line-height: 16px; }
 .loc-x { border: 0; background: transparent; color: var(--label-3); cursor: pointer; display: grid; place-items: center; padding: 0; margin-right: -4px; }
 .loc-x:hover { color: var(--label); }
+
+/* ---------- Duplicates: kinds / groups / detail, laid out by the space the page actually has ---------- */
+
+.dup-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 1440px) {
+  .dup-actions .lbl { display: none; }
+  .dup-actions .btn { padding: 0 9px; }
+}
+.dup-wrap { flex: 1; min-height: 0; display: flex; container-type: inline-size; }
+.dup {
+  flex: 1; min-width: 0; display: grid; gap: 12px 16px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas: "kinds" "list" "detail";
+}
+.dup-kinds { grid-area: kinds; }
+.dup-list { grid-area: list; display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
+.dup-list .search { min-width: 0; flex: none; }
+.dup-detail { grid-area: detail; display: flex; flex-direction: column; min-height: 0; min-width: 0; padding: 14px 14px 6px; }
+.dup-detail .glass-scroll { margin-right: -8px; padding-right: 8px; }
+.dup-detail .rows { background: transparent; border: 0; box-shadow: none; padding: 0; }
+.dup-detail .empty { min-height: 160px; }
+
+/* Kinds as a horizontal chip strip while the page is narrow */
+.dup-kinds { display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding-bottom: 2px; }
+.dup-kinds::-webkit-scrollbar { display: none; }
+.dup-kinds button { flex: none; white-space: nowrap; height: 28px; padding: 0 11px; border-radius: 99px; background-color: var(--fill-2); font-size: 12.5px; gap: 6px; }
+.dup-kinds button svg { width: 14px; height: 14px; }
+.dup-kinds button .n { margin-left: 2px; }
+.dup-kinds button.on { background-color: color-mix(in srgb, var(--a1) 20%, var(--fill-2)); }
+
+/* Group rows */
+.dup-row { cursor: pointer; gap: 11px; }
+.dup-row .kind-icon { width: 30px; height: 30px; border-radius: 7px; }
+.dup-row .t { line-height: 20px; }
+.dup-row .sub { line-height: 18px; }
+.dup-row.active { background-color: color-mix(in srgb, var(--a1) 15%, transparent); box-shadow: inset 3px 0 0 var(--a1); }
+.dup-row.active::before, .dup-row.active + .dup-row::before { opacity: 0; }
+.dup-waste { flex: none; font-size: 12.5px; font-weight: 600; color: color-mix(in srgb, var(--a1) 75%, var(--label)); font-variant-numeric: tabular-nums; }
+.vlist:focus-visible .vlist-body { box-shadow: var(--shadow-1), 0 0 0 3px color-mix(in srgb, var(--a1) 40%, transparent); }
+
+/* Detail pane */
+.dup-detail-head { display: flex; align-items: center; gap: 12px; padding: 2px 4px 12px; border-bottom: 0.5px solid var(--sep); }
+.dup-detail-head h3 { margin: 0; font-size: 15px; font-weight: 650; line-height: 1.35; }
+.dup-detail-head .faint { font-size: 12px; }
+.dup-file-icon { width: 44px; height: 44px; flex: none; border-radius: 10px; object-fit: contain; }
+.dup-keep { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 10px 4px 8px; font-size: 12.5px; }
+.dup-keep .faint { margin-right: 4px; }
+.dup-copy { align-items: center; }
+.dup-path { font-size: 12.5px; color: var(--label); line-height: 1.45; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dup-tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; flex: none; max-width: 40%; }
+
+/* Medium: kinds strip on top, groups beside the detail */
+@container (min-width: 640px) {
+  .dup {
+    grid-template-columns: minmax(250px, 2fr) minmax(0, 3fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "kinds kinds" "list detail";
+  }
+}
+/* Wide: kinds become a sidebar, three columns */
+@container (min-width: 1040px) {
+  .dup {
+    grid-template-columns: 212px minmax(280px, 380px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "kinds list detail";
+    gap: 20px;
+  }
+  .dup-kinds { display: grid; align-content: start; gap: 1px; overflow: visible auto; }
+  .dup-kinds button { height: 30px; padding: 0 9px; border-radius: 7px; background-color: transparent; font-size: 13px; gap: 9px; }
+  .dup-kinds button svg { width: 16px; height: 16px; }
+  .dup-kinds button .n { margin-left: auto; }
+  .dup-kinds button.on { background-color: var(--fill); }
+}
+/* Large displays: give the group list more room too */
+@container (min-width: 1500px) {
+  .dup { grid-template-columns: 220px minmax(340px, 480px) minmax(0, 1fr); }
+  .dup-detail { padding: 18px 18px 8px; }
+}

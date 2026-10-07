@@ -3,9 +3,11 @@ const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
 const crypto = require('crypto');
-const { WIN, walk, listDir } = require('./util.cjs');
-const settings = require('./settings.cjs');
-const skipDir = (full, name) => SKIP_DIRS.has(name.toLowerCase()) || settings.isExcluded(full);
+const { WIN, walk, listDir, isUnder } = require('./util.cjs');
+
+// Runs inside a worker thread (see files-host.cjs), so nothing here may require Electron:
+// the user's excluded folders arrive as `excludes` in each scan's options.
+const skipper = (excludes) => (full, name) => SKIP_DIRS.has(name.toLowerCase()) || isUnder(full, excludes);
 
 const KINDS = {
   video: /\.(mp4|mkv|mov|avi|wmv|flv|webm|m4v|mpg|mpeg|ts|m2ts)$/i,
@@ -29,7 +31,8 @@ const resolveRoots = (roots) => (roots && roots.length ? roots : ['~']).map((r) 
 
 /* ---------------- Large & old files ---------------- */
 
-async function scanLarge({ roots, minSize = 50 * 1024 * 1024 }, send, signal) {
+async function scanLarge({ roots, minSize = 50 * 1024 * 1024, excludes }, send, signal) {
+  const skipDir = skipper(excludes);
   const found = [];
   let scanned = 0;
   const emit = throttle((dir) => send({ current: dir, scanned, found: found.length }));
@@ -44,78 +47,143 @@ async function scanLarge({ roots, minSize = 50 * 1024 * 1024 }, send, signal) {
   return found.sort((a, b) => b.size - a.size);
 }
 
-/* ---------------- Duplicates ---------------- */
+/* ---------------- Duplicates ----------------
+ *
+ * A staged funnel, cheapest test first, so almost every file is ruled out without being read:
+ *   1. Group by exact size (metadata only, gathered during the walk).
+ *   2. Drop hard links: several paths to the same file are not duplicates.
+ *   3. Read three small samples (head / middle / tail) in one open. Files no bigger than the
+ *      samples are compared in full here and need no further work.
+ *   4. Only files whose samples still match are hashed in full, a few at a time.
+ */
 
-async function hashFile(p, { head } = {}) {
-  const h = crypto.createHash('sha1');
-  if (head) {
-    const fd = await fsp.open(p, 'r');
-    try {
-      const buf = Buffer.alloc(head);
-      const { bytesRead } = await fd.read(buf, 0, head, 0);
-      h.update(buf.subarray(0, bytesRead));
-      const st = await fd.stat();
-      if (st.size > head * 2) {
-        const { bytesRead: tail } = await fd.read(buf, 0, head, st.size - head);
-        h.update(buf.subarray(0, tail));
+const SAMPLE = 16 * 1024;
+const HASH_PARALLEL = 4;
+
+/** Key from head + middle + tail; covers the whole file when size <= 3 * SAMPLE. */
+async function sampleKey(p, size) {
+  const fd = await fsp.open(p, 'r');
+  try {
+    const h = crypto.createHash('sha1');
+    if (size <= SAMPLE * 3) {
+      const buf = Buffer.allocUnsafe(size);
+      let off = 0;
+      while (off < size) {
+        const { bytesRead } = await fd.read(buf, off, size - off, off);
+        if (!bytesRead) break;
+        off += bytesRead;
       }
-    } finally { await fd.close(); }
+      h.update(buf.subarray(0, off));
+    } else {
+      const buf = Buffer.allocUnsafe(SAMPLE);
+      for (const pos of [0, Math.floor((size - SAMPLE) / 2), size - SAMPLE]) {
+        const { bytesRead } = await fd.read(buf, 0, SAMPLE, pos);
+        h.update(buf.subarray(0, bytesRead));
+      }
+    }
     return h.digest('hex');
-  }
+  } finally { await fd.close(); }
+}
+
+function fullHash(p, signal, onBytes) {
   return new Promise((resolve, reject) => {
-    fs.createReadStream(p, { highWaterMark: 1024 * 1024 })
-      .on('data', (d) => h.update(d))
+    const h = crypto.createHash('sha1');
+    const rs = fs.createReadStream(p, { highWaterMark: 1024 * 1024 });
+    const abort = () => rs.destroy(new Error('aborted'));
+    signal.addEventListener('abort', abort, { once: true });
+    rs.on('data', (d) => { h.update(d); onBytes(d.length); })
       .on('end', () => resolve(h.digest('hex')))
-      .on('error', reject);
+      .on('error', reject)
+      .on('close', () => signal.removeEventListener('abort', abort));
   });
 }
 
-async function scanDuplicates({ roots, minSize = 1024 }, send, signal) {
+/** Splits each group by `keyOf`, keeping only sub-groups that still hold 2+ files. */
+async function refine(groups, keyOf, { signal, parallel, onDone }) {
+  const limit = limiter(parallel);
+  const out = [];
+  await Promise.all(groups.map(async (files) => {
+    const map = new Map();
+    await Promise.all(files.map((f) => limit(async () => {
+      if (signal.aborted) return;
+      try {
+        const k = await keyOf(f);
+        const arr = map.get(k);
+        if (arr) arr.push(f); else map.set(k, [f]);
+      } catch { /* unreadable or locked */ }
+      onDone(f);
+    })));
+    for (const arr of map.values()) if (arr.length > 1) out.push(arr);
+  }));
+  return out;
+}
+
+async function scanDuplicates({ roots, minSize = 1024, excludes }, send, signal) {
+  const skipDir = skipper(excludes);
+  // size -> entry | entry[]; a single entry is stored bare since most sizes are unique.
   const bySize = new Map();
   let scanned = 0;
   const emit = throttle((dir) => send({ stage: 'collect', current: dir, scanned }));
+  const seen = new Set();
   for (const root of resolveRoots(roots)) {
     await walk(root, (p, st) => {
       scanned++;
       if (st.size < minSize) return;
-      const arr = bySize.get(st.size);
-      const entry = { path: p, name: path.basename(p), size: st.size, mtime: st.mtimeMs, kind: kindOf(p) };
-      if (arr) arr.push(entry); else bySize.set(st.size, [entry]);
+      const entry = { path: p, size: st.size, mtime: st.mtimeMs, inode: st.ino ? `${st.dev}:${st.ino}` : '' };
+      const cur = bySize.get(st.size);
+      if (!cur) bySize.set(st.size, entry);
+      else if (Array.isArray(cur)) cur.push(entry);
+      else bySize.set(st.size, [cur, entry]);
     }, { signal, onDir: emit, skipDir });
   }
+  send({ stage: 'collect', scanned });
 
-  const candidates = [...bySize.values()].filter((a) => a.length > 1);
-  const total = candidates.reduce((a, g) => a + g.length, 0);
-  let hashed = 0;
-  const emitHash = throttle((cur) => send({ stage: 'hash', current: cur, hashed, total }));
-  const groups = [];
-
-  const groupBy = async (files, opts) => {
-    const map = new Map();
-    for (const f of files) {
-      if (signal.aborted) return [];
-      try {
-        const k = await hashFile(f.path, opts);
-        const arr = map.get(k);
-        if (arr) arr.push(f); else map.set(k, [f]);
-      } catch { /* unreadable */ }
-    }
-    return [...map.entries()].filter(([, a]) => a.length > 1);
-  };
-
-  for (const files of candidates) {
-    if (signal.aborted) break;
-    hashed += files.length;
-    emitHash(files[0].path);
-    const partial = await groupBy(files, { head: 64 * 1024 });
-    for (const [, sub] of partial) {
-      const full = sub[0].size <= 128 * 1024 ? [[null, sub]] : await groupBy(sub);
-      for (const [, dup] of full) {
-        groups.push({ id: crypto.randomUUID(), size: dup[0].size, name: dup[0].name, kind: dup[0].kind, files: dup.sort((a, b) => a.mtime - b.mtime) });
-      }
-    }
+  // Same size, distinct files (hard links and overlapping roots collapse to one entry).
+  let candidates = [];
+  for (const v of bySize.values()) {
+    if (!Array.isArray(v)) continue;
+    const uniq = v.filter((f) => {
+      const id = f.inode || f.path.toLowerCase();
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    if (uniq.length > 1) candidates.push(uniq);
   }
-  return groups.sort((a, b) => b.size * (b.files.length - 1) - a.size * (a.files.length - 1));
+  bySize.clear(); seen.clear();
+  // Big files first: they carry most of the reclaimable space if the user stops early.
+  candidates.sort((a, b) => b[0].size - a[0].size);
+
+  const total = candidates.reduce((a, g) => a + g.length, 0);
+  let done = 0;
+  const emitSample = throttle((f) => send({ stage: 'compare', current: f.path, done, total }));
+  const sampled = await refine(candidates, (f) => sampleKey(f.path, f.size), {
+    signal, parallel: 8, onDone: (f) => { done++; emitSample(f); },
+  });
+  candidates = null;
+
+  const confirmed = sampled.filter((g) => g[0].size <= SAMPLE * 3);
+  const needHash = sampled.filter((g) => g[0].size > SAMPLE * 3);
+  const totalBytes = needHash.reduce((a, g) => a + g[0].size * g.length, 0);
+  let bytes = 0;
+  let current = '';
+  const emitHash = throttle(() => send({ stage: 'hash', current, bytes, totalBytes, found: confirmed.length }));
+  const hashed = await refine(needHash, (f) => {
+    current = f.path;
+    return fullHash(f.path, signal, (n) => { bytes += n; emitHash(); });
+  }, { signal, parallel: HASH_PARALLEL, onDone: () => {} });
+
+  return [...confirmed, ...hashed]
+    .map((files) => {
+      files.sort((a, b) => a.mtime - b.mtime);
+      const name = path.basename(files[0].path);
+      const kind = kindOf(name);
+      return {
+        id: crypto.randomUUID(), size: files[0].size, name, kind,
+        files: files.map((f) => ({ path: f.path, name: path.basename(f.path), size: f.size, mtime: f.mtime, kind })),
+      };
+    })
+    .sort((a, b) => b.size * (b.files.length - 1) - a.size * (a.files.length - 1));
 }
 
 /* ---------------- Space Lens ---------------- */

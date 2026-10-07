@@ -5,7 +5,7 @@ import type { CleanResult, JunkCategory, JunkProgress } from '../api/types';
 import { useApp } from '../App';
 import { HELP } from '../help';
 import { formatBytes, formatNumber } from '../lib/format';
-import { IdleHero, ScanningHero, ScanDock, PageHead, Checkbox, useProgress, useToast } from '../components/ui';
+import { IdleHero, ScanningHero, ScanDock, PageHead, Checkbox, useProgress, useToast, ActionButton } from '../components/ui';
 import { JunkList, AdminNotice, DoneHero } from '../components/Results';
 
 type Phase = 'idle' | 'scanning' | 'results' | 'cleaning' | 'done';
@@ -126,7 +126,7 @@ export default function SystemJunk() {
         </label>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <div className="sum"><b>{formatBytes(selSize)}</b></div>
-          <button className="btn primary pill big" disabled={!selected.size} onClick={clean}>クリーンアップ</button>
+          <ActionButton disabled={!selected.size} onClick={clean}>クリーンアップ</ActionButton>
         </div>
       </div>
     </>

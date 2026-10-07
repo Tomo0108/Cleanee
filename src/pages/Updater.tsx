@@ -3,7 +3,7 @@ import { RefreshCcw, Loader2, CheckCircle2, AlertCircle, ArrowRight, PackageChec
 import { api } from '../api';
 import type { UpdateItem } from '../api/types';
 import { useApp } from '../App';
-import { PageHead, ListHead, AppIcon, HoverCard, DetailCard, useNativeIcon, Checkbox, ScanningHero, useToast } from '../components/ui';
+import { PageHead, ListHead, AppIcon, HoverCard, DetailCard, useNativeIcon, Checkbox, ScanningHero, useToast, ActionButton } from '../components/ui';
 
 type St = 'pending' | 'running' | 'done' | 'error';
 
@@ -111,9 +111,7 @@ export default function Updater() {
       </div>
       <div className="footer-bar">
         <span className="muted">{sel.size} 個選択</span>
-        <button className="btn primary pill big" disabled={!sel.size || running} onClick={update}>
-          {running ? <><Loader2 size={16} className="spin" />更新中</> : 'アップデート'}
-        </button>
+        <ActionButton disabled={!sel.size} busy={running} busyLabel="更新中" onClick={update}>アップデート</ActionButton>
       </div>
     </>
   );

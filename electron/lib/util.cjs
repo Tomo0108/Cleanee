@@ -28,37 +28,57 @@ async function listDir(p) {
   try { return await fsp.readdir(p, { withFileTypes: true }); } catch { return []; }
 }
 
+/** True when `p` is one of `folders` or lies inside one (case-insensitive, Windows style). */
+function isUnder(p, folders) {
+  if (!folders || !folders.length) return false;
+  const lower = p.toLowerCase();
+  return folders.some((e) => {
+    const x = e.toLowerCase().replace(/[\\/]+$/, '');
+    return lower === x || lower.startsWith(x + path.sep);
+  });
+}
+
+const STAT_BATCH = 64;
+
 /**
  * Recursively walks `root`, calling onFile(fullPath, stat) for each regular file.
  * Symlinks / junctions are never followed so we can't escape the root.
+ * Sub-folders are queued before a folder's files are stat'ed, and the stats run in
+ * parallel batches, so the disk always has work queued (stat dominates on Windows).
  */
 async function walk(root, onFile, { signal, onDir, skipDir, concurrency = 16 } = {}) {
   const queue = [root];
   let active = 0;
   return new Promise((resolve) => {
+    let done = false;
     const pump = () => {
-      if (signal?.aborted) { if (active === 0) resolve(); return; }
+      if (done) return;
+      if (signal?.aborted) { if (active === 0) { done = true; resolve(); } return; }
       while (active < concurrency && queue.length) {
         const dir = queue.pop();
         active++;
-        processDir(dir).finally(() => { active--; pump(); });
+        processDir(dir).catch(() => {}).finally(() => { active--; pump(); });
       }
-      if (active === 0 && queue.length === 0) resolve();
+      if (active === 0 && queue.length === 0) { done = true; resolve(); }
     };
     const processDir = async (dir) => {
       if (onDir) onDir(dir);
       const entries = await listDir(dir);
+      const files = [];
       for (const e of entries) {
-        if (signal?.aborted) return;
-        const full = path.join(dir, e.name);
         if (e.isSymbolicLink()) continue;
+        const full = path.join(dir, e.name);
         if (e.isDirectory()) {
-          if (skipDir && skipDir(full, e.name)) continue;
-          queue.push(full);
-        } else if (e.isFile()) {
-          const st = await safeStat(full);
-          if (st) await onFile(full, st);
-        }
+          if (!(skipDir && skipDir(full, e.name))) queue.push(full);
+        } else if (e.isFile()) files.push(full);
+      }
+      pump(); // start on the sub-folders while this folder's files are stat'ed
+      for (let i = 0; i < files.length; i += STAT_BATCH) {
+        if (signal?.aborted) return;
+        await Promise.all(files.slice(i, i + STAT_BATCH).map(async (f) => {
+          const st = await safeStat(f);
+          if (st) await onFile(f, st);
+        }));
       }
     };
     pump();
@@ -151,4 +171,4 @@ async function runningProcesses() {
   return names;
 }
 
-module.exports = { WIN, env, exists, safeStat, listDir, walk, deleteFiles, run, ps, psJson, runElevatedConsole, spawnDetached, isAdmin, runningProcesses };
+module.exports = { WIN, env, exists, safeStat, listDir, walk, isUnder, deleteFiles, run, ps, psJson, runElevatedConsole, spawnDetached, isAdmin, runningProcesses };

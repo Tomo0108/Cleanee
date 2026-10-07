@@ -4,7 +4,7 @@ import { api } from '../api';
 import type { SpaceNode } from '../api/types';
 import { useApp } from '../App';
 import { formatBytes, formatNumber } from '../lib/format';
-import { ScanningHero, ScanDock, PageHead, Checkbox, Modal, useProgress, useToast } from '../components/ui';
+import { ScanningHero, ScanDock, PageHead, Checkbox, Modal, useProgress, useToast, ActionButton } from '../components/ui';
 import { Ring } from './Optimize';
 import { HELP } from '../help';
 
@@ -181,9 +181,9 @@ export default function SpaceLens() {
               })}
             </div>
           </div>
-          <div className="footer-bar" style={{ padding: '10px 10px 10px 16px' }}>
+          <div className="footer-bar">
             <div className="sum"><b style={{ fontSize: 18 }}>{formatBytes(selSize)}</b><span>{sel.size} 項目</span></div>
-            <button className="btn primary" disabled={!sel.size} onClick={() => setConfirm(true)}>ごみ箱へ</button>
+            <ActionButton disabled={!sel.size} onClick={() => setConfirm(true)}>ごみ箱へ</ActionButton>
           </div>
         </div>
       </div>

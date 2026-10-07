@@ -188,7 +188,7 @@ function registerIpc() {
   const privacy = require('./lib/privacy.cjs');
   const startup = require('./lib/startup.cjs');
   const apps = require('./lib/apps.cjs');
-  const files = require('./lib/files.cjs');
+  const files = require('./lib/files-host.cjs');
   const system = require('./lib/system.cjs');
 
   ipcMain.handle('task:cancel', (_e, task) => controllers.get(task)?.abort());
@@ -236,8 +236,9 @@ function registerIpc() {
     try { return (await app.getFileIcon(p, { size: 'normal' })).toDataURL(); } catch { return null; }
   });
 
-  ipcMain.handle('large:scan', job('large', (send, signal, opts) => files.scanLarge(opts || {}, send, signal)));
-  ipcMain.handle('dup:scan', job('dup', (send, signal, opts) => files.scanDuplicates(opts || {}, send, signal)));
+  const withExcludes = (opts) => ({ ...(opts || {}), excludes: settings.get().excludes });
+  ipcMain.handle('large:scan', job('large', (send, signal, opts) => files.scanLarge(withExcludes(opts), send, signal)));
+  ipcMain.handle('dup:scan', job('dup', (send, signal, opts) => files.scanDuplicates(withExcludes(opts), send, signal)));
   ipcMain.handle('space:scan', job('space', (send, signal, root) => files.scanSpace(root, send, signal)));
   ipcMain.handle('space:node', (_e, p) => files.spaceNode(p));
 
@@ -252,7 +253,7 @@ function registerIpc() {
         if (st && st.isFile()) freed += st.size;
       } catch { failed++; }
     }
-    files.spaceRemove(done);
+    await files.spaceRemove(done).catch(() => {});
     return { ok, failed, freed };
   });
 

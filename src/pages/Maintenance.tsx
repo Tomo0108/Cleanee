@@ -4,7 +4,7 @@ import { api } from '../api';
 import type { TaskResult } from '../api/types';
 import { useApp } from '../App';
 import { formatBytes } from '../lib/format';
-import { PageHead, Checkbox, useToast } from '../components/ui';
+import { PageHead, Checkbox, useToast, ActionButton } from '../components/ui';
 
 interface Task { id: string; name: string; desc: string; icon: LucideIcon; elevated?: boolean; rec?: boolean }
 const TASKS: Task[] = [
@@ -87,9 +87,7 @@ export default function Maintenance() {
       </div>
       <div className="footer-bar">
         <span className="muted">{selected.size} 件選択</span>
-        <button className="btn primary pill big" disabled={!selected.size || running} onClick={run}>
-          {running ? <><Loader2 size={16} className="spin" />実行中</> : '実行'}
-        </button>
+        <ActionButton disabled={!selected.size} busy={running} busyLabel="実行中" onClick={run}>実行</ActionButton>
       </div>
     </>
   );
