@@ -75,6 +75,7 @@ html[data-theme="light"] {
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --t-fast: 140ms;
   --t-panel: 220ms;
+  --ease-sine: cubic-bezier(0.37, 0, 0.63, 1);
   /* Shared by every button so hover / press feel identical everywhere */
   --btn-motion: transform 0.2s var(--ease), box-shadow 0.25s var(--ease), background-color var(--t-fast), color var(--t-fast), opacity var(--t-fast);
   /* legacy aliases used by inline styles */
@@ -165,13 +166,25 @@ html[data-material="on"] .main { background: var(--main); border-radius: 0; }
 .page { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; padding: calc(var(--titlebar) + 2px) 36px 24px 32px; overflow: clip; }
 .page[hidden] { display: none; }
 
-.bg-fx { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.ambient i { position: absolute; border-radius: 50%; filter: blur(110px); opacity: var(--ambient-opacity); background: var(--a1); will-change: transform, opacity; }
-/* Drift (transform) and fade (opacity) run on different, unrelated periods so the light never
-   visibly loops; the staggered fades keep the overall brightness roughly constant. */
-.ambient .f1 { width: 620px; height: 520px; top: -260px; right: -140px; animation: drift1 32s ease-in-out infinite alternate, fadeA 19s ease-in-out infinite alternate; }
-.ambient .f2 { width: 560px; height: 480px; bottom: -280px; left: 80px; opacity: calc(var(--ambient-opacity) * 0.7); animation: drift2 38s ease-in-out infinite alternate, fadeB 23s ease-in-out -11s infinite alternate; }
-.ambient .f3 { width: 520px; height: 440px; top: 30%; left: 42%; opacity: calc(var(--ambient-opacity) * 0.5); background: color-mix(in srgb, var(--a1) 70%, #fff); animation: drift3 44s ease-in-out infinite alternate, fadeC 29s ease-in-out -7s infinite alternate; }
+.bg-fx { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; contain: strict; }
+/* Light fields are soft radial gradients rather than blurred discs: a large blur filter has to be
+   re-rendered by the GPU every frame while the layer moves, which is what made the motion stutter.
+   The gradient stops follow a Gaussian-like falloff so the edges look the same as the old blur. */
+.ambient { position: absolute; inset: 0; opacity: var(--ambient-opacity); }
+.ambient i {
+  --c: var(--a1);
+  position: absolute; border-radius: 50%; will-change: transform, opacity; backface-visibility: hidden;
+  background: radial-gradient(closest-side,
+    var(--c) 0%, color-mix(in srgb, var(--c) 78%, transparent) 20%, color-mix(in srgb, var(--c) 48%, transparent) 42%,
+    color-mix(in srgb, var(--c) 22%, transparent) 64%, color-mix(in srgb, var(--c) 7%, transparent) 84%, transparent 100%);
+  animation-timing-function: var(--ease-sine); animation-iteration-count: infinite; animation-direction: alternate;
+}
+/* Drift (transform) and fade (opacity) run on unrelated periods so the light never visibly loops;
+   the staggered fades keep the overall brightness roughly constant. Only transform and opacity
+   animate, with plain numeric keyframes, so everything stays on the compositor. */
+.ambient .f1 { opacity: 0.8; width: 900px; height: 780px; top: -390px; right: -280px; animation-name: drift1, fadeA; animation-duration: 36s, 21s; }
+.ambient .f2 { opacity: 0.5; width: 800px; height: 720px; bottom: -400px; left: -40px; animation-name: drift2, fadeB; animation-duration: 42s, 26s; animation-delay: 0s, -13s; }
+.ambient .f3 { --c: color-mix(in srgb, var(--a1) 70%, #fff); opacity: 0.3; width: 760px; height: 680px; top: calc(30% - 120px); left: calc(42% - 120px); animation-name: drift3, fadeC; animation-duration: 48s, 31s; animation-delay: 0s, -8s; }
 
 /* ---------- Page header ---------- */
 
@@ -566,12 +579,12 @@ html[data-theme="dark"] .segmented button.on { background: rgba(255, 255, 255, 0
 @keyframes popIn { from { opacity: 0; transform: scale(0.97) translateY(-4px); } }
 @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } }
 @keyframes pop { from { opacity: 0; } }
-@keyframes drift1 { to { transform: translate(-140px, 90px) scale(1.12); } }
-@keyframes drift2 { to { transform: translate(160px, -80px) scale(1.1); } }
-@keyframes drift3 { from { transform: translate(-120px, 40px) scale(0.9); } to { transform: translate(140px, -60px) scale(1.08); } }
-@keyframes fadeA { from { opacity: calc(var(--ambient-opacity) * 0.35); } to { opacity: var(--ambient-opacity); } }
-@keyframes fadeB { from { opacity: calc(var(--ambient-opacity) * 0.9); } to { opacity: calc(var(--ambient-opacity) * 0.2); } }
-@keyframes fadeC { from { opacity: 0; } to { opacity: calc(var(--ambient-opacity) * 0.6); } }
+@keyframes drift1 { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(-140px, 90px, 0) scale(1.12); } }
+@keyframes drift2 { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(160px, -80px, 0) scale(1.1); } }
+@keyframes drift3 { from { transform: translate3d(-120px, 40px, 0) scale(0.9); } to { transform: translate3d(140px, -60px, 0) scale(1.08); } }
+@keyframes fadeA { from { opacity: 0.35; } to { opacity: 1; } }
+@keyframes fadeB { from { opacity: 0.65; } to { opacity: 0.14; } }
+@keyframes fadeC { from { opacity: 0; } to { opacity: 0.55; } }
 
 /* Reduced motion (OS setting or "アニメーション: オフ") */
 html[data-motion="reduced"] *:not(.page),
@@ -670,6 +683,75 @@ html[data-motion="reduced"] .page-out-down, html[data-motion="reduced"] .page-ou
 .dc-rows dt { color: var(--label-2); font-size: 12px; }
 .dc-rows dd { margin: 0; min-width: 0; word-break: break-all; font-variant-numeric: tabular-nums; user-select: text; }
 .dc-rows .mono { font-size: 11px; color: var(--label-2); }
+.threat-row { cursor: pointer; }
+.threat-row:focus-visible { outline-offset: -2px; }
+.threat-kind { margin-left: 8px; font-size: 11.5px; font-weight: 500; color: var(--label-2); }
+.threat-sheet { width: min(620px, 94vw); max-height: min(86vh, 760px); padding: 0; overflow: hidden; }
+.threat-sheet > .actions { margin: 0; padding: 12px 18px 14px; border-top: 0.5px solid var(--sep); align-items: center; }
+.ts-head { display: flex; align-items: center; gap: 13px; padding: 18px 16px 14px 20px; flex: none; }
+.ts-head h3 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.3; }
+.ts-name { font-size: 12px; color: var(--label-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; }
+.ts-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; flex: none; color: #fff; box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.35), var(--shadow-1); }
+.ts-icon.ok { background: var(--ok); } .ts-icon.warn { background: var(--warn); } .ts-icon.danger { background: var(--danger); }
+.ts-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 20px 18px; display: grid; gap: 16px; align-content: start; }
+
+/* Verdict: the answer to "do I need to do anything?" */
+.ts-verdict { --tone: var(--ok); display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; border-radius: 12px;
+  background: color-mix(in srgb, var(--tone) 12%, transparent); box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--tone) 35%, transparent); }
+.ts-verdict.warn { --tone: var(--warn); } .ts-verdict.danger { --tone: var(--danger); }
+.ts-verdict > svg { color: var(--tone); flex: none; align-self: flex-start; margin-top: 1px; }
+.ts-verdict-title { font-weight: 650; font-size: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ts-status { font-size: 11px; font-weight: 600; padding: 0 7px; line-height: 18px; border-radius: 99px; color: var(--tone); background: color-mix(in srgb, var(--tone) 16%, transparent); }
+.ts-verdict-body { font-size: 12.5px; color: var(--label-2); line-height: 1.6; margin-top: 2px; }
+
+/* Key facts */
+.ts-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ts-fact { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--fill-2); min-width: 0; }
+.ts-fact b { font-size: 14px; font-weight: 650; line-height: 1.4; overflow-wrap: anywhere; }
+.ts-k { font-size: 11.5px; color: var(--label-3); font-weight: 500; }
+.ts-s { font-size: 11.5px; color: var(--label-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 18px; }
+.ts-meter { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-top: 5px; }
+.ts-meter i { height: 4px; border-radius: 99px; background: var(--fill); }
+.ts-meter i.on { background: var(--label-2); }
+.ts-meter.l2 i.on { background: var(--warn); }
+.ts-meter.l3 i.on, .ts-meter.l4 i.on { background: var(--danger); }
+
+/* Sections */
+.ts-sec h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--label-3); letter-spacing: 0.02em; }
+/* Lead: what this kind of threat is (the title above already names it) */
+.ts-lead { margin: -4px 0 0 !important; color: var(--label) !important; font-size: 13.5px !important; line-height: 1.7; }
+/* Risk and notes share one callout style; the bold lead-in replaces separate headings */
+.ts-notes { display: grid; gap: 6px; }
+.ts-callout { --tone: var(--label-2); display: flex; gap: 9px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: var(--fill-2); font-size: 12.5px; line-height: 1.65; color: var(--label); }
+.ts-callout svg { flex: none; margin-top: 3px; color: var(--tone); }
+.ts-callout b { display: block; font-weight: 600; font-size: 12px; color: var(--tone); }
+.ts-callout.warn { --tone: var(--warn); }
+.ts-callout.bad { --tone: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.ts-files { display: grid; gap: 6px; }
+.ts-file { display: grid; gap: 1px; padding: 9px 12px; border-radius: 10px; background: var(--fill-2); min-width: 0; }
+.ts-file-name { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 13px; min-width: 0; word-break: break-all; }
+.ts-file-path { font-size: 11.5px; color: var(--label-2); word-break: break-all; user-select: text; }
+
+/* Technical details, folded by default */
+.ts-more { border-top: 0.5px solid var(--sep); padding-top: 12px; }
+.ts-more summary { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--label-2); list-style: none; border-radius: 6px; }
+.ts-more summary::-webkit-details-marker { display: none; }
+.ts-more summary svg { transition: transform var(--t-fast) var(--ease); }
+.ts-more[open] summary svg { transform: rotate(90deg); }
+.ts-more summary:hover { color: var(--label); }
+.ts-segs { display: flex; flex-wrap: wrap; align-items: center; padding: 10px 12px; border-radius: 10px; background: var(--fill-2); font-size: 14px; user-select: text; }
+.ts-sep { color: var(--label-3); margin: 0 1px; }
+.ts-seg { padding: 1px 5px; border-radius: 5px; background: color-mix(in srgb, var(--sc) 18%, transparent); color: color-mix(in srgb, var(--sc) 70%, var(--label)); }
+.ts-seg, .ts-dot { --sc: var(--label-2); }
+.ts-seg.type, .ts-dot.type { --sc: #ff6961; } .ts-seg.platform, .ts-dot.platform { --sc: #64a8ff; }
+.ts-seg.family, .ts-dot.family { --sc: #c58aff; } .ts-seg.variant, .ts-dot.variant { --sc: #ffb340; } .ts-seg.suffix, .ts-dot.suffix { --sc: #4cd4a5; }
+.ts-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--sc); margin-right: 6px; vertical-align: 1px; }
+.ts-legend { margin: 8px 0 0; display: grid; gap: 5px; }
+.ts-legend > div { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: 12.5px; }
+.ts-legend dt { color: var(--label-2); }
+.ts-legend dd { margin: 0; min-width: 0; word-break: break-all; user-select: text; }
+.ts-legend .mono { font-size: 12px; }
+@media (max-width: 760px) { .ts-facts { grid-template-columns: minmax(0, 1fr); } }
 .dc-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px; }
 
 /* Status banner (e.g. protection result) */

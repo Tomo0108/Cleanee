@@ -304,7 +304,10 @@ export function createMockApi(): CleaneeApi {
       return {
         available: true, antivirus: true, realtime: true, service: true, signatureAge: 0, signatureVersion: '1.419.212.0', signatureUpdated: Date.now() - 5 * 3600000,
         quickScanAge: 2, fullScanAge: 41, lastQuickScan: Date.now() - 2 * DAY,
-        threats: [{ id: '2147735505', name: 'PUA:Win32/Presenoker', severity: 1, resources: [`file:_${U}\\Downloads\\free_converter_setup.exe`], time: Date.now() - 12 * DAY, status: 3 }],
+        threats: [
+          { id: '2147735505', name: 'PUA:Win32/Presenoker', severity: 1, category: 27, executed: false, resources: [`file:_${U}\\Downloads\\free_converter_setup.exe`], time: Date.now() - 12 * DAY, status: 3, source: 3, action: 2, actionSuccess: true, process: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', user: 'DESKTOP\\user', remediated: Date.now() - 12 * DAY + 4000 },
+          { id: '2147814523', name: 'Trojan:Win32/Wacatac.B!ml', severity: 5, category: 8, executed: false, resources: [`file:_${U}\\Downloads\\invoice_2026.zip->invoice.exe`], time: Date.now() - 40 * DAY, status: 4, source: 4, action: 3, actionSuccess: true, user: 'DESKTOP\\user', remediated: Date.now() - 40 * DAY + 2000 },
+        ],
       };
     },
     defenderScan: async () => {

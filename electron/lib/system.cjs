@@ -172,14 +172,14 @@ async function defenderStatus() {
 try{
   $s=Get-MpComputerStatus -ErrorAction Stop
   $t=@(Get-MpThreatDetection -ErrorAction SilentlyContinue | Sort-Object InitialDetectionTime -Descending | Select-Object -First 20)
-  $names=@{}; Get-MpThreat -ErrorAction SilentlyContinue | ForEach-Object { $names[[string]$_.ThreatID]=@{name=$_.ThreatName;severity=$_.SeverityID} }
+  $names=@{}; Get-MpThreat -ErrorAction SilentlyContinue | ForEach-Object { $names[[string]$_.ThreatID]=@{name=$_.ThreatName;severity=$_.SeverityID;category=$_.CategoryID;executed=$_.DidThreatExecute} }
   [pscustomobject]@{
     available=$true; antivirus=$s.AntivirusEnabled; realtime=$s.RealTimeProtectionEnabled; service=$s.AMServiceEnabled;
     signatureAge=$s.AntivirusSignatureAge; signatureVersion=$s.AntivirusSignatureVersion;
     signatureUpdated=([DateTimeOffset]$s.AntivirusSignatureLastUpdated).ToUnixTimeMilliseconds();
     quickScanAge=$s.QuickScanAge; fullScanAge=$s.FullScanAge;
     lastQuickScan=$(if($s.QuickScanEndTime){([DateTimeOffset]$s.QuickScanEndTime).ToUnixTimeMilliseconds()}else{0});
-    threats=@($t | ForEach-Object { $n=$names[[string]$_.ThreatID]; [pscustomobject]@{ id=[string]$_.ThreatID; name=[string]$n.name; severity=[int]$n.severity; resources=@($_.Resources); time=([DateTimeOffset]$_.InitialDetectionTime).ToUnixTimeMilliseconds(); status=[int]$_.ThreatStatusID } })
+    threats=@($t | ForEach-Object { $n=$names[[string]$_.ThreatID]; [pscustomobject]@{ id=[string]$_.ThreatID; name=[string]$n.name; severity=[int]$n.severity; category=[int]$n.category; executed=[bool]$n.executed; resources=@($_.Resources); time=([DateTimeOffset]$_.InitialDetectionTime).ToUnixTimeMilliseconds(); status=[int]$_.ThreatStatusID; source=[int]$_.DetectionSourceTypeID; action=[int]$_.CleaningActionID; actionSuccess=[bool]$_.ActionSuccess; process=[string]$_.ProcessName; user=[string]$_.DomainUser; remediated=$(if($_.RemediationTime){([DateTimeOffset]$_.RemediationTime).ToUnixTimeMilliseconds()}else{0}) } })
   } | ConvertTo-Json -Depth 5 -Compress
 }catch{ '{"available":false}' }`, { available: false });
   return s;

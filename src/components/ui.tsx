@@ -273,20 +273,23 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
 
 /* ---------------- Modal ---------------- */
 
-export function Modal({ title, children, onClose, actions, wide }: { title?: string; children: ReactNode; onClose: () => void; actions: ReactNode; wide?: boolean }) {
+export function Modal({ title, children, onClose, actions, wide, className = '' }: { title?: string; children: ReactNode; onClose: () => void; actions: ReactNode; wide?: boolean; className?: string }) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, [onClose]);
-  return (
+  // Portal to the app root so the dialog sits above the sidebar instead of inside the page's
+  // stacking context; `.app` (not body) so the module accent variables still apply.
+  return createPortal(
     <div className="modal-back" onMouseDown={onClose}>
-      <div className={`modal ${wide ? 'wide' : ''}`} onMouseDown={(e) => e.stopPropagation()}>
+      <div className={`modal ${wide ? 'wide' : ''} ${className}`} role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
         {title && <h3>{title}</h3>}
         {children}
         <div className="actions">{actions}</div>
       </div>
-    </div>
+    </div>,
+    document.querySelector('.app') || document.body,
   );
 }
 

@@ -40,7 +40,12 @@ export interface SpaceNode {
 
 export interface TaskResult { ok: boolean; message: string; freed?: number }
 
-export interface DefenderThreat { id: string; name: string; severity: number; resources: string[]; time: number; status: number }
+export interface DefenderThreat {
+  id: string; name: string; severity: number; resources: string[]; time: number; status: number;
+  /** Extra detail from Get-MpThreat / Get-MpThreatDetection (absent in older data). */
+  category?: number; executed?: boolean; source?: number; action?: number; actionSuccess?: boolean;
+  process?: string; user?: string; remediated?: number;
+}
 export interface DefenderStatus {
   available: boolean; antivirus?: boolean; realtime?: boolean; service?: boolean;
   signatureAge?: number; signatureVersion?: string; signatureUpdated?: number;
